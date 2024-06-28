@@ -60,7 +60,7 @@ _weighted_attributes = [
 _T = TypeVar("_T")
 
 
-def _stack[_T](*values: _T, depth=2, include_fn: Callable[[list[_T]], bool] | None = None) -> list[list[_T]]:
+def _stack(*values: _T, depth=2, include_fn: Callable[[list[_T]], bool] | None = None) -> list[list[_T]]:
     def _always_include(_x: list[_T]) -> bool:
         return True
 
