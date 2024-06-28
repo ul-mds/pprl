@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "pprl-core"
+version = "0.1.0"
+description = ""
+authors = ["Maximilian Jugl <Maximilian.Jugl@medizin.uni-leipzig.de>"]
+readme = "README.md"
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+bitarray = "^2.9.2"
+pyphonetics = "^0.5.3"
+unidecode = "^1.3.8"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+ruff = "^0.4.10"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

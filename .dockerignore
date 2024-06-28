@@ -1,0 +1,7 @@
+packages/*/.idea
+packages/*/.pytest_cache
+packages/*/.venv
+packages/*/tests
+scripts
+.git
+

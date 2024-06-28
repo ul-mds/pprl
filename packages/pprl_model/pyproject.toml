@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "pprl-model"
+version = "0.1.0"
+description = ""
+authors = ["Maximilian Jugl <Maximilian.Jugl@medizin.uni-leipzig.de>"]
+readme = "README.md"
+packages = [{ include = "pprl_model" }]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pydantic = "^2.7.4"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+ruff = "^0.4.10"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
