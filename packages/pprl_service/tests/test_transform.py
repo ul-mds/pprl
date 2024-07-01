@@ -1,8 +1,7 @@
 from pprl_model import EntityTransformRequest, EntityTransformConfig, EmptyValueHandling, AttributeValueEntity, \
-    CharacterFilterTransformer
-from pprl_model.transform import AttributeTransformerConfig, EntityTransformResponse, DateTimeTransformer, \
-    MappingTransformer, NormalizationTransformer, NumberTransformer, PhoneticCodeTransformer, PhoneticCodeAlgorithm, \
-    GlobalTransformerConfig
+    CharacterFilterTransformer, AttributeTransformerConfig, EntityTransformResponse, DateTimeTransformer, \
+    MappingTransformer, NormalizationTransformer, NumberTransformer, PhoneticCodeTransformer, GlobalTransformerConfig, \
+    PhoneticCodeAlgorithm
 from starlette import status
 
 
