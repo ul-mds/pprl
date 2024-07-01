@@ -5,8 +5,9 @@ from .mask import HashStrategy, DoubleHash, TripleHash, EnhancedDoubleHash, Rand
     MaskConfig, AttributeSalt, StaticAttributeConfig, WeightedAttributeConfig, EntityMaskRequest, EntityMaskResponse
 from .match import SimilarityMeasure, MatchConfig, MatchRequest, MatchResponse, Match
 from .transform import EmptyValueHandling, EntityTransformConfig, Transformer, NormalizationTransformer, \
-    DateTimeTransformer, CharacterFilterTransformer, MappingTransformer, NumberTransformer, PhoneticCodeTransformer, \
-    GlobalTransformerConfig, EntityTransformRequest, \
+    DateTimeTransformer, CharacterFilterTransformer, MappingTransformer, NumberTransformer, \
+    PhoneticCodeTransformer, PhoneticCodeAlgorithm, AnyTransformer, \
+    AttributeTransformerConfig, GlobalTransformerConfig, EntityTransformRequest, \
     EntityTransformResponse
 
 __all__ = [
@@ -27,6 +28,9 @@ __all__ = [
     "MappingTransformer",
     "NumberTransformer",
     "PhoneticCodeTransformer",
+    "PhoneticCodeAlgorithm",
+    "AnyTransformer",
+    "AttributeTransformerConfig",
     "EmptyValueHandling",
     "EntityTransformRequest",
     "EntityTransformResponse",

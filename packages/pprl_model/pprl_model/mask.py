@@ -211,7 +211,7 @@ class EntityMaskRequest(ParentModel):
         # throw an error if there are any attributes with configurations that are not present on some entities
         if len(attribute_name_to_non_present_entity_id_dict) != 0:
             entity_str = ",".join([
-                f"`{attr_name}` on entities with ID {', '.join(entity_ids)}`"
+                f"`{attr_name}` on entities with ID `{'`, `'.join(entity_ids)}`"
                 for attr_name, entity_ids in attribute_name_to_non_present_entity_id_dict.items()
             ])
 
@@ -248,7 +248,7 @@ class EntityMaskRequest(ParentModel):
         # throw an error if there are any attributes that are not present on some entities
         if len(attribute_name_to_non_present_entity_id_dict) != 0:
             entity_str = ",".join([
-                f"`{attr_name}` on entities with ID {', '.join(entity_ids)}`"
+                f"`{attr_name}` on entities with ID `{'`, `'.join(entity_ids)}`"
                 for attr_name, entity_ids in attribute_name_to_non_present_entity_id_dict.items()
             ])
 

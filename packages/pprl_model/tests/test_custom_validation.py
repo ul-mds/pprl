@@ -193,7 +193,7 @@ def test_entity_mask_request_attribute_not_present_on_entity(filter_type, uuid4)
         )
 
     assert (f"some configured attributes are not present on entities: `###` on "
-            f"entities with ID {entity_id}") in str(e.value)
+            f"entities with ID `{entity_id}`") in str(e.value)
 
 
 @pytest.mark.parametrize("filter_type", [
@@ -243,4 +243,4 @@ def test_entity_mask_request_attribute_salt_not_present_on_entity(filter_type, u
         )
 
     assert (f"some configured attribute salts are not present on entities: `###` on "
-            f"entities with ID {entity_id}") in str(e.value)
+            f"entities with ID `{entity_id}`") in str(e.value)
