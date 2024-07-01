@@ -1,11 +1,22 @@
 [tool.poetry]
 name = "pprl-service"
 version = "0.1.0"
-description = ""
+description = "HTTP-based service for performing privacy-preserving record linkage with Bloom filters."
 authors = ["Maximilian Jugl <Maximilian.Jugl@medizin.uni-leipzig.de>"]
 readme = "README.md"
 package-mode = false
 license = "MIT"
+repository = "https://github.com/ul-mds/pprl"
+keywords = ["record linkage", "privacy", "bloom filter", "bitarray", "cryptography", "service", "api"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Security :: Cryptography"
+]
 
 [tool.poetry.scripts]
 pprl_service = "pprl_service.main:run_server"
