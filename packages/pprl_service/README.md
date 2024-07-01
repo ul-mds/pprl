@@ -171,3 +171,7 @@ assert r.status_code == 200
 print(r.json()["matches"])
 # => [{'domain': {'id': 'D001', 'value': 'RBDAZOkBgFOKMQGGBAJxDSfAQKCAGADyqbB+bQu6cjIkc58MJEgqBbCVgwGCoTSTA6WJA4IDkQEgEQYshQEgLA=='}, 'range': {'id': 'R002', 'value': 'QBBAYOEBgFOKMREGBAZxDSfAQKGEEAJyydB4bQO6dl4gc58EJEgiAZCVgwGCoDSXA6GIA4ODkQEgEAQEhQAgJA=='}, 'similarity': 0.7771739130434783}]
 ```
+
+# License
+
+MIT.
