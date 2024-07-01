@@ -2,6 +2,8 @@ This package enables core facilities for performing PPRL based on Bloom filters 
 It is mostly backed by the [bitarray](https://github.com/ilanschnell/bitarray) package which implements memory-efficient
 arrays of bits in Python.
 This package is composed of several submodules which implement different aspects of performing PPRL.
+It is used by the [PPRL service package](https://github.com/ul-mds/pprl/tree/main/packages/pprl_service) under the hood 
+to power its PPRL capabilities.
 
 # Bitarray primitives
 
@@ -272,3 +274,7 @@ cologne = phonetics_extra.ColognePhonetics()
 print(cologne.phonetics("Müller-Ludenscheidt"))
 # => "65752682"
 ```
+
+# License
+
+MIT.
