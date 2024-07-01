@@ -4,6 +4,9 @@ on:
   workflow_run:
     workflows: ["Test"]
     types: [completed]
+  push:
+    tags:
+      - "v*"
 
 env:
   REGISTRY: ghcr.io

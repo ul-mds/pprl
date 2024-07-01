@@ -1,14 +1,13 @@
 name: Publish to PyPI
 
 on:
-  workflow_run:
-    workflows: ["Test"]
-    types: [completed]
+  push:
+    tags:
+      - "v*"
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: ${{ github.ref_type == 'tag' }}
     strategy:
       matrix:
         package: [pprl_core, pprl_model]
