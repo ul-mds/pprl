@@ -44,7 +44,7 @@ jobs:
         ports:
           - 8000:8000
         options: >-
-          --health-cmd "curl -I http://localhost:8000/healthz"
+          --health-cmd "curl -X GET http://localhost:8000/healthz"
           --health-interval 2s
           --health-timeout 5s
           --health-retries 5
