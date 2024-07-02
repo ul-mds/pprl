@@ -43,7 +43,7 @@ async def perform_matching(match_req: MatchRequest) -> MatchResponse:
 
     if _similarity_mapping is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail=f"unimplemented similarity measure `{sim_measure.name}`"
         )
 
