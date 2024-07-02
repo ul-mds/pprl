@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "pprl-client"
+version = "0.1.0"
+description = ""
+authors = ["Maximilian Jugl <Maximilian.Jugl@medizin.uni-leipzig.de>"]
+readme = "README.md"
+packages = [{ include = "pprl_client" }]
+
+[tool.poetry.scripts]
+pprl = "pprl_client.cli:app"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pprl-model = { path = "../pprl_model" }
+httpx = "^0.27.0"
+click = "^8.1.7"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+ruff = "^0.5.0"
+pytest-dotenv = "^0.5.2"
+testcontainers = "^4.7.0"
+faker = "^26.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

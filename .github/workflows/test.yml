@@ -34,3 +34,17 @@ jobs:
         run: ./scripts/poetry_run_in_each.sh install
       - name: Test
         run: ./scripts/poetry_run_in_each.sh run pytest -rs
+        env:
+          PPRL_BASE_URL: http://localhost:8000
+          PPRL_USE_TESTCONTAINER: 0
+  
+    services:
+      pprl:
+        image: ghcr.io/ul-mds/pprl:sha-34808c1
+        ports:
+          - 8000:8000
+        options: >-
+          --health-cmd "curl -I http://localhost:8000/healthz"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 5
