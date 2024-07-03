@@ -7,13 +7,13 @@ readme = "README.md"
 packages = [{ include = "pprl_client" }]
 
 [tool.poetry.scripts]
-pprl = "pprl_client.cli:app"
+pprl = "pprl_client.cli:run_cli"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pprl-model = { path = "../pprl_model" }
 httpx = "^0.27.0"
 click = "^8.1.7"
+pprl-model = { path = "../pprl_model" }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
