@@ -57,12 +57,16 @@ def app(ctx: click.Context, base_url: str):
     "-b", "--batch-size", type=click.IntRange(min=1), default=1_000,
     help="amount of bit vectors to match at a time"
 )
+@click.option(
+    "--timeout-secs", type=click.IntRange(min=1), default=30,
+    help="seconds until a request times out"
+)
 def match(
         ctx: click.Context,
         domain_file_path: Path, range_file_path: Path, output_file_path: Path,
         measure: str, threshold: float,
         batch_size: int, domain_id_column: str, domain_value_column: str, range_id_column: str, range_value_column: str,
-        delimiter: str, encoding: str,
+        delimiter: str, encoding: str, timeout_secs: int,
 ):
     base_url = ctx.obj["BASE_URL"]
 
@@ -92,7 +96,7 @@ def match(
     domain_start_idx = list(range(0, len(domain_vectors), batch_size))
     range_start_idx = list(range(0, len(range_vectors), batch_size))
 
-    idx_pairs = itertools.product(domain_start_idx, range_start_idx)
+    idx_pairs = list(itertools.product(domain_start_idx, range_start_idx))
 
     with open(output_file_path, "w", encoding=encoding, newline="") as output_file:
         writer = csv.DictWriter(output_file, delimiter=delimiter, fieldnames=["domain_id", "range_id", "similarity"])
@@ -108,7 +112,7 @@ def match(
                     range=range_vectors[range_idx:range_idx + batch_size],
                 )
 
-                match_response = lib.match(match_request, base_url=base_url)
+                match_response = lib.match(match_request, base_url=base_url, timeout_secs=timeout_secs)
 
                 writer.writerows([
                     {

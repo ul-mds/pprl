@@ -5,6 +5,7 @@ import uuid
 from random import Random
 
 import pytest
+from click.testing import CliRunner
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
@@ -22,6 +23,11 @@ def env_pprl_testcontainer_image() -> str:
 @pytest.fixture(scope="session")
 def env_pprl_use_testcontainer() -> bool:
     return os.environ.get("PPRL_USE_TESTCONTAINER", "0") == "1"
+
+
+@pytest.fixture(scope="session")
+def env_pprl_request_timeout_secs() -> int:
+    return int(os.environ.get("PPRL_REQUEST_TIMEOUT_SECS", "30"))
 
 
 @pytest.fixture(scope="session")
@@ -91,3 +97,8 @@ def faker_session_locale():
 @pytest.fixture(scope="session", autouse=True)
 def faker_seed():
     return 727
+
+
+@pytest.fixture()
+def cli_runner():
+    return CliRunner()

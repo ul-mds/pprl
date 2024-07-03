@@ -14,6 +14,8 @@ from pprl_client.common import error_detail_of
 _MI = TypeVar("_MI", bound=BaseModel)
 _MO = TypeVar("_MO", bound=BaseModel)
 
+_DEFAULT_TIMEOUT_SECS = 10
+
 
 def _coalesce_url(base_url: str, path: str, url: str | None = None) -> str:
     if url is None:
@@ -22,8 +24,9 @@ def _coalesce_url(base_url: str, path: str, url: str | None = None) -> str:
     return url
 
 
-def _perform_request(url: str, model_in: _MI, model_out: Type[_MO]) -> _MO:
-    r = httpx.post(url, json=model_in.model_dump())
+def _perform_request(url: str, model_in: _MI, model_out: Type[_MO],
+                     timeout_secs: int | None = _DEFAULT_TIMEOUT_SECS) -> _MO:
+    r = httpx.post(url, json=model_in.model_dump(), timeout=timeout_secs)
 
     if r.status_code != 200:
         # bad request
@@ -48,24 +51,27 @@ def match(
         req: MatchRequest,
         base_url="http://localhost:8000",
         url: str | None = None,
+        timeout_secs: int | None = _DEFAULT_TIMEOUT_SECS
 ):
     url = _coalesce_url(base_url, "match/", url)
-    return _perform_request(url, req, MatchResponse)
+    return _perform_request(url, req, MatchResponse, timeout_secs)
 
 
 def transform(
         req: EntityTransformRequest,
         base_url="http://localhost:8000",
         url: str | None = None,
+        timeout_secs: int | None = _DEFAULT_TIMEOUT_SECS
 ) -> EntityTransformResponse:
     url = _coalesce_url(base_url, "transform/", url)
-    return _perform_request(url, req, EntityTransformResponse)
+    return _perform_request(url, req, EntityTransformResponse, timeout_secs)
 
 
 def mask(
         req: EntityMaskRequest,
         base_url="http://localhost:8000",
         url: str | None = None,
+        timeout_secs: int | None = _DEFAULT_TIMEOUT_SECS
 ) -> EntityMaskResponse:
     url = _coalesce_url(base_url, "mask/", url)
-    return _perform_request(url, req, EntityMaskResponse)
+    return _perform_request(url, req, EntityMaskResponse, timeout_secs)
