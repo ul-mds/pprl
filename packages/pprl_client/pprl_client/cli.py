@@ -43,7 +43,7 @@ def _maybe_parse_json_file_into(path: Path | None, model: Type[_M], encoding: st
 )
 @click.option(
     "--encoding", type=str, default="utf-8",
-    help="character encoding for CSV files"
+    help="character encoding for files"
 )
 def app(ctx: click.Context, base_url: str, batch_size: int, timeout_secs: int, delimiter: str, encoding: str):
     ctx.ensure_object(dict)
@@ -152,10 +152,22 @@ def match(
 @click.pass_context
 @click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_file_path", type=click.Path(path_type=Path, dir_okay=False))
-@click.option("--entity-id-column", type=str, default="id")
-@click.option("--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None)
-@click.option("--global-config-path", type=click.Path(exists=True, path_type=Path), default=None)
-@click.option("--empty-value", type=click.Choice(["ignore", "error", "skip"]), default="error")
+@click.option(
+    "--entity-id-column", type=str, default="id",
+    help="column name in entity CSV file containing ID"
+)
+@click.option(
+    "--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None,
+    help="path to JSON file containing attribute-level transformers"
+)
+@click.option(
+    "--global-config-path", type=click.Path(exists=True, path_type=Path), default=None,
+    help="path to JSON file containing global transformers"
+)
+@click.option(
+    "--empty-value", type=click.Choice(["ignore", "error", "skip"]), default="error",
+    help="handling of empty values during processing"
+)
 def transform(
         ctx: click.Context,
         entity_file_path: Path,
