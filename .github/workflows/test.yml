@@ -21,7 +21,7 @@ jobs:
           - "3.11"
           - "3.10"
         package:
-          - pprl_client
+          - "pprl_client"
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -60,9 +60,9 @@ jobs:
           - "3.11"
           - "3.10"
         package:
-          - pprl_core
-          - pprl_model
-          - pprl_service
+          - "pprl_core"
+          - "pprl_model"
+          - "pprl_service"
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
