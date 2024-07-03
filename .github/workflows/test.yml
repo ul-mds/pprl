@@ -12,7 +12,7 @@ on:
       - synchronize
 
 jobs:
-  test:
+  integration-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -20,6 +20,8 @@ jobs:
           - "3.12"
           - "3.11"
           - "3.10"
+        package:
+          - pprl_client
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -30,14 +32,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
-      - name: Install submodules
-        run: ./scripts/poetry_run_in_each.sh install
+      - name: Install dependencies
+        working-directory: ./packages/${{ matrix.package }}
+        run: poetry install
       - name: Test
-        run: ./scripts/poetry_run_in_each.sh run pytest -rs
+        run: poetry run pytest -rs
         env:
           PPRL_BASE_URL: http://localhost:8000
           PPRL_USE_TESTCONTAINER: 0
-  
     services:
       pprl:
         image: ghcr.io/ul-mds/pprl:sha-34808c1
@@ -48,3 +50,31 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 5
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.11"
+          - "3.10"
+        package:
+          - pprl_core
+          - pprl_model
+          - pprl_service
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "poetry"
+      - name: Install dependencies
+        working-directory: ./packages/${{ matrix.package }}
+        run: poetry install
+      - name: Test
+        run: poetry run pytest -rs
