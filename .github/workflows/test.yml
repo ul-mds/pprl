@@ -36,6 +36,7 @@ jobs:
         working-directory: ./packages/${{ matrix.package }}
         run: poetry install
       - name: Test
+        working-directory: ./packages/${{ matrix.package }}
         run: poetry run pytest -rs
         env:
           PPRL_BASE_URL: http://localhost:8000
@@ -77,4 +78,5 @@ jobs:
         working-directory: ./packages/${{ matrix.package }}
         run: poetry install
       - name: Test
+        working-directory: ./packages/${{ matrix.package }}
         run: poetry run pytest -rs
