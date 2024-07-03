@@ -1,22 +1,10 @@
-from faker import Faker
-from pprl_model import MatchRequest, MatchConfig, SimilarityMeasure, BitVectorEntity, AttributeValueEntity, \
-    EntityTransformRequest, EntityTransformConfig, EmptyValueHandling, GlobalTransformerConfig, \
+from pprl_model import MatchRequest, MatchConfig, SimilarityMeasure, BitVectorEntity, EntityTransformRequest, \
+    EntityTransformConfig, EmptyValueHandling, GlobalTransformerConfig, \
     NormalizationTransformer, EntityMaskRequest, MaskConfig, HashConfig, HashFunction, RandomHash, HashAlgorithm, \
     CLKFilter
 
 import pprl_client
-
-
-def _generate_person(person_id: str, faker: Faker):
-    return AttributeValueEntity(
-        id=person_id,
-        attributes={
-            "first_name": faker.first_name(),
-            "last_name": faker.last_name(),
-            "date_of_birth": faker.date_of_birth(minimum_age=18, maximum_age=120).strftime("%Y-%m-%d"),
-            "gender": faker.random_element(["male", "female"])
-        }
-    )
+from tests.helpers import generate_person
 
 
 def test_match(pprl_base_url, base64_factory, uuid4_factory):
@@ -43,7 +31,7 @@ def test_match(pprl_base_url, base64_factory, uuid4_factory):
 
 
 def test_transform(pprl_base_url, uuid4_factory, faker):
-    entities = [_generate_person(uuid4_factory(), faker) for _ in range(100)]
+    entities = [generate_person(uuid4_factory(), faker) for _ in range(100)]
 
     r = pprl_client.transform(EntityTransformRequest(
         config=EntityTransformConfig(empty_value=EmptyValueHandling.error),
@@ -59,7 +47,7 @@ def test_transform(pprl_base_url, uuid4_factory, faker):
 
 
 def test_mask(pprl_base_url, uuid4_factory, faker):
-    entities = [_generate_person(uuid4_factory(), faker) for _ in range(100)]
+    entities = [generate_person(uuid4_factory(), faker) for _ in range(100)]
 
     r = pprl_client.mask(EntityMaskRequest(
         config=MaskConfig(
