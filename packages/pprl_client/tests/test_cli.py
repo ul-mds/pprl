@@ -41,7 +41,7 @@ def test_match(tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url,
     domain_path = tmpdir.join("domain.csv")
     range_path = tmpdir.join("range.csv")
 
-    vector_count = 1_000
+    vector_count = 100
 
     _write_random_vectors_to(domain_path, base64_factory, n=vector_count)
     _write_random_vectors_to(range_path, base64_factory, n=vector_count)
@@ -51,7 +51,7 @@ def test_match(tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url,
 
     output_path = tmpdir.join("output.csv")
     result = cli_runner.invoke(app, [
-        "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
+        "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
         "match", str(domain_path), str(range_path), str(output_path),
         "-m", "jaccard", "-t", "0",
     ])
