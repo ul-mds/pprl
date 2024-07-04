@@ -7,7 +7,7 @@ from typing import Any, TypeVar, Type
 import click
 from pprl_model import MatchConfig, BitVectorEntity, MatchRequest, EntityTransformConfig, AttributeValueEntity, \
     GlobalTransformerConfig, EntityTransformRequest, MaskConfig, CLKFilter, HashConfig, \
-    HashFunction, EntityMaskRequest
+    HashFunction, EntityMaskRequest, RBFFilter, CLKRBFFilter
 from pydantic import BaseModel
 
 from pprl_client import lib
@@ -349,6 +349,142 @@ def clk(
         ),
         prepend_attribute_name=prepend_attribute_name,
         filter=CLKFilter(filter_size=filter_size, hash_values=hash_values),
+        padding=padding,
+        hardeners=hardener_json,
+    )
+
+    _, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
+
+    attribute_json = _maybe_read_json(attribute_config_path, encoding) or []
+    idx = list(range(0, len(entities), batch_size))
+
+    with open(output_file_path, mode="w", encoding=encoding, newline="") as output_file:
+        writer = csv.DictWriter(output_file, delimiter=delimiter, fieldnames=[entity_id_column, "value"])
+        writer.writeheader()
+
+        with click.progressbar(idx, label="Masking entities") as progressbar:
+            for i in progressbar:
+                mask_response = lib.mask(EntityMaskRequest(
+                    config=mask_config,
+                    entities=entities[i:i + batch_size],
+                    attributes=attribute_json,
+                ), base_url=base_url, timeout_secs=timeout_secs)
+
+                writer.writerows([
+                    {
+                        entity_id_column: entity.id,
+                        "value": entity.value
+                    } for entity in mask_response.entities
+                ])
+
+
+@mask.command()
+@click.pass_context
+@click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_file_path", type=click.Path(dir_okay=False, file_okay=True, path_type=Path))
+@click.argument("hash_values", type=click.IntRange(min=1))
+@click.argument("seed", type=int)
+@common_mask_options
+def rbf(
+        ctx: click.Context,
+        entity_file_path: Path,
+        output_file_path: Path,
+        hash_values: int,
+        seed: int,
+        token_size: int,
+        prepend_attribute_name: bool,
+        padding: str,
+        hash_strategy: str,
+        hash_algorithm: list[str],
+        hash_key: str,
+        hardener_config_path: Path | None,
+        attribute_config_path: Path | None,
+        entity_id_column: str,
+):
+    base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
+
+    # read hardeners
+    hardener_json = _maybe_read_json(hardener_config_path, encoding) or []
+
+    # noinspection PyTypeChecker
+    mask_config = MaskConfig(
+        token_size=token_size,
+        hash=HashConfig(
+            function=HashFunction(
+                algorithms=hash_algorithm,
+                key=hash_key
+            ),
+            strategy={"name": hash_strategy}
+        ),
+        prepend_attribute_name=prepend_attribute_name,
+        filter=RBFFilter(hash_values=hash_values, seed=seed),
+        padding=padding,
+        hardeners=hardener_json,
+    )
+
+    _, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
+
+    attribute_json = _maybe_read_json(attribute_config_path, encoding) or []
+    idx = list(range(0, len(entities), batch_size))
+
+    with open(output_file_path, mode="w", encoding=encoding, newline="") as output_file:
+        writer = csv.DictWriter(output_file, delimiter=delimiter, fieldnames=[entity_id_column, "value"])
+        writer.writeheader()
+
+        with click.progressbar(idx, label="Masking entities") as progressbar:
+            for i in progressbar:
+                mask_response = lib.mask(EntityMaskRequest(
+                    config=mask_config,
+                    entities=entities[i:i + batch_size],
+                    attributes=attribute_json,
+                ), base_url=base_url, timeout_secs=timeout_secs)
+
+                writer.writerows([
+                    {
+                        entity_id_column: entity.id,
+                        "value": entity.value
+                    } for entity in mask_response.entities
+                ])
+
+
+@mask.command()
+@click.pass_context
+@click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_file_path", type=click.Path(dir_okay=False, file_okay=True, path_type=Path))
+@click.argument("hash_values", type=click.IntRange(min=1))
+@common_mask_options
+def clkrbf(
+        ctx: click.Context,
+        entity_file_path: Path,
+        output_file_path: Path,
+        hash_values: int,
+        token_size: int,
+        prepend_attribute_name: bool,
+        padding: str,
+        hash_strategy: str,
+        hash_algorithm: list[str],
+        hash_key: str,
+        hardener_config_path: Path | None,
+        attribute_config_path: Path | None,
+        entity_id_column: str,
+):
+    base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
+
+    # read hardeners
+    hardener_json = _maybe_read_json(hardener_config_path, encoding) or []
+
+    # noinspection PyTypeChecker
+    mask_config = MaskConfig(
+        token_size=token_size,
+        hash=HashConfig(
+            function=HashFunction(
+                algorithms=hash_algorithm,
+                key=hash_key
+            ),
+            strategy={"name": hash_strategy}
+        ),
+        prepend_attribute_name=prepend_attribute_name,
+        filter=CLKRBFFilter(hash_values=hash_values),
         padding=padding,
         hardeners=hardener_json,
     )
