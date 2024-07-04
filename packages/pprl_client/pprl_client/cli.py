@@ -96,7 +96,10 @@ def _mask_and_write_to_output_file(
 
 @click.group()
 @click.pass_context
-@click.option("--base-url", default="http://localhost:8000")
+@click.option(
+    "--base-url", default="http://localhost:8000",
+    help="base URL to HTTP-based PPRL service"
+)
 @click.option(
     "-b", "--batch-size", type=click.IntRange(min=1), default=1_000,
     help="amount of bit vectors to match at a time"
@@ -114,6 +117,7 @@ def _mask_and_write_to_output_file(
     help="character encoding for files"
 )
 def app(ctx: click.Context, base_url: str, batch_size: int, timeout_secs: int, delimiter: str, encoding: str):
+    """HTTP client for performing PPRL based on Bloom filters."""
     ctx.ensure_object(dict)
     ctx.obj["BASE_URL"] = base_url
     ctx.obj["BATCH_SIZE"] = batch_size
@@ -185,6 +189,12 @@ def match(
         measure: str, threshold: float,
         domain_id_column: str, domain_value_column: str, range_id_column: str, range_value_column: str,
 ):
+    """
+    Match bit vectors from CSV files against each other.
+
+    DOMAIN_FILE_PATH and RANGE_FILE_PATH are the paths to the CSV files containing bit vectors.
+    OUTPUT_FILE_PATH is the path of the CSV file where the matches should be written to.
+    """
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # noinspection PyTypeChecker
@@ -285,6 +295,12 @@ def transform(
         attribute_config_path: Path | None,
         global_config_path: Path | None
 ):
+    """
+    Perform pre-processing on a CSV file with entities.
+
+    ENTITY_FILE_PATH is the path to the CSV file containing entities.
+    OUTPUT_FILE_PATH is the path of the CSV file where the pre-processed entities should be written to.
+    """
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # noinspection PyTypeChecker
@@ -323,24 +339,47 @@ def transform(
 
 @app.group()
 def mask():
+    """Mask a CSV file with entities."""
     pass
 
 
 def common_mask_options(fn):
-    fn = click.option("-q", "--token-size", type=click.IntRange(min=2), default=2)(fn)
-    fn = click.option("--prepend-attribute-name/--no-prepend-attribute-name", default=True)(fn)
-    fn = click.option("-p", "--padding", type=str, default="")(fn)
-    fn = click.option("--hash-strategy", type=click.Choice(
-        ["double_hash", "enhanced_double_hash", "triple_hash", "random_hash"]
-    ), default="random_hash")(fn)
-    fn = click.option("-h", "--hash-algorithm", type=click.Choice([
-        "md5", "sha1", "sha256", "sha512"
-    ]), multiple=True, default=["sha256"])(fn)
-    fn = click.option("-s", "--hash-key", type=str)(fn)
     fn = click.option(
-        "--hardener-config-path", type=click.Path(exists=True, path_type=Path), default=None
+        "-q", "--token-size", type=click.IntRange(min=2), default=2,
+        help="size of tokens to split each attribute value into"
     )(fn)
-    fn = click.option("--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None)(fn)
+    fn = click.option(
+        "--prepend-attribute-name/--no-prepend-attribute-name", default=True,
+        help="prepend attribute name to each token inserted into the filter"
+    )(fn)
+    fn = click.option(
+        "-p", "--padding", type=str, default="",
+        help="padding to use when splitting attribute values into tokens"
+    )(fn)
+    fn = click.option(
+        "--hash-strategy", type=click.Choice(
+            ["double_hash", "enhanced_double_hash", "triple_hash", "random_hash"]
+        ), default="random_hash",
+        help="strategy of setting bits in filter to use"
+    )(fn)
+    fn = click.option(
+        "-h", "--hash-algorithm", type=click.Choice([
+            "md5", "sha1", "sha256", "sha512"
+        ]), multiple=True, default=["sha256"],
+        help="hash algorithms to generate hash values with from tokens"
+    )(fn)
+    fn = click.option(
+        "-s", "--hash-key", type=str, default=None,
+        help="secret to use to turn select hash algorithms into keyed HMACs"
+    )(fn)
+    fn = click.option(
+        "--hardener-config-path", type=click.Path(exists=True, path_type=Path), default=None,
+        help="path to JSON file containing hardener configuration"
+    )(fn)
+    fn = click.option(
+        "--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None,
+        help="path to JSON file containing attribute configuration"
+    )(fn)
     fn = click.option(
         "--entity-id-column", type=str, default="id",
         help="column name in entity CSV file containing ID"
@@ -377,6 +416,14 @@ def clk(
         entity_id_column: str,
         entity_value_column: str
 ):
+    """
+    Mask a CSV file with entities using a CLK filter.
+    
+    ENTITY_FILE_PATH is the path to the CSV file containing entities.
+    OUTPUT_FILE_PATH is the path of the CSV file where the masked entities should be written to.
+    FILTER_SIZE is the size of the CLK filter in bits.
+    HASH_VALUES is the amount of hash values to generate per inserted token into the filter.
+    """
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # read hardeners
@@ -429,6 +476,15 @@ def rbf(
         entity_id_column: str,
         entity_value_column: str
 ):
+    """
+    Mask a CSV file with entities using an RBF filter.
+    
+    ENTITY_FILE_PATH is the path to the CSV file containing entities.
+    OUTPUT_FILE_PATH is the path of the CSV file where the masked entities should be written to.
+    HASH_VALUES is the minimum amount of hash values to generate per token inserted into the filter.
+    The actual amount of hash values is computed using per-attribute configuration.
+    SEED is the random number generator seed for randomly sampling bits to set in the filter. 
+    """
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # read hardeners
@@ -479,6 +535,14 @@ def clkrbf(
         entity_id_column: str,
         entity_value_column: str
 ):
+    """
+    Mask a CSV file with entities using a CLKRBF filter.
+    
+    ENTITY_FILE_PATH is the path to the CSV file containing entities.
+    OUTPUT_FILE_PATH is the path of the CSV file where the masked entities should be written to.
+    HASH_VALUES is the minimum amount of hash values to generate per token inserted into the filter.
+    The actual amount of hash values is computed using per-attribute configuration.
+    """
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # read hardeners
