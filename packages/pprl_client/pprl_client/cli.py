@@ -6,7 +6,7 @@ from typing import Any, TypeVar, Type
 
 import click
 from pprl_model import MatchConfig, BitVectorEntity, MatchRequest, EntityTransformConfig, AttributeValueEntity, \
-    GlobalTransformerConfig, AttributeTransformerConfig, EntityTransformRequest, MaskConfig, CLKFilter, HashConfig, \
+    GlobalTransformerConfig, EntityTransformRequest, MaskConfig, CLKFilter, HashConfig, \
     HashFunction, EntityMaskRequest
 from pydantic import BaseModel
 
@@ -35,12 +35,23 @@ def _maybe_parse_json_file_into(path: Path | None, model: Type[_M], encoding: st
     return _parse_json_file_into(path, model, encoding)
 
 
-def _maybe_parse_json_file_into_list_of(path: Path | None, model: Type[_M], encoding: str) -> list[_M] | None:
-    if path is None:
-        return None
+def _destructure_context(ctx: click.Context) -> tuple[str, int, int, str, str]:
+    """
+    Collect all parameters passed into the main command.
+    
+    Args:
+        ctx: Click context
 
-    with open(path, mode="r", encoding=encoding) as f:
-        return [model(**obj) for obj in json.load(f)]
+    Returns:
+        Tuple containing base URL, batch size, request timeout in seconds, CSV delimiter and file encoding
+    """
+    return (
+        ctx.obj["BASE_URL"],
+        int(ctx.obj["BATCH_SIZE"]),
+        int(ctx.obj["TIMEOUT_SECS"]),
+        ctx.obj["DELIMITER"],
+        ctx.obj["ENCODING"]
+    )
 
 
 @click.group()
@@ -69,6 +80,34 @@ def app(ctx: click.Context, base_url: str, batch_size: int, timeout_secs: int, d
     ctx.obj["TIMEOUT_SECS"] = timeout_secs
     ctx.obj["DELIMITER"] = delimiter
     ctx.obj["ENCODING"] = encoding
+
+
+def _read_bit_vector_entity_file(
+        path: Path, encoding: str, delimiter: str, id_column: str, value_column: str
+) -> list[BitVectorEntity]:
+    """
+    Read a CSV file containing bit vector entities.
+    
+    Args:
+        path: path to CSV file
+        encoding: file encoding
+        delimiter: column delimiter
+        id_column: name of ID column
+        value_column: name of value column
+
+    Returns:
+        list of bit vector entities
+    """
+    with open(path, mode="r", encoding=encoding, newline="") as f:
+        reader = csv.DictReader(f, delimiter=delimiter)
+
+        # noinspection PyTypeChecker
+        return [
+            BitVectorEntity(
+                id=row[id_column],
+                value=row[value_column],
+            ) for row in reader
+        ]
 
 
 @app.command()
@@ -106,11 +145,7 @@ def match(
         measure: str, threshold: float,
         domain_id_column: str, domain_value_column: str, range_id_column: str, range_value_column: str,
 ):
-    base_url = ctx.obj["BASE_URL"]
-    batch_size = ctx.obj["BATCH_SIZE"]
-    timeout_secs = ctx.obj["TIMEOUT_SECS"]
-    delimiter = ctx.obj["DELIMITER"]
-    encoding = ctx.obj["ENCODING"]
+    base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # noinspection PyTypeChecker
     match_config = MatchConfig(
@@ -118,22 +153,15 @@ def match(
         threshold=threshold,
     )
 
-    with open(domain_file_path, "r", encoding=encoding, newline="") as domain_file:
-        reader = csv.DictReader(domain_file, delimiter=delimiter)
+    domain_vectors = _read_bit_vector_entity_file(
+        domain_file_path, encoding, delimiter,
+        id_column=domain_id_column, value_column=domain_value_column
+    )
 
-        # noinspection PyTypeChecker
-        domain_vectors = [BitVectorEntity(
-            id=row[domain_id_column],
-            value=row[domain_value_column],
-        ) for row in reader]
-
-    with open(range_file_path, "r", encoding=encoding, newline="") as range_file:
-        reader = csv.DictReader(range_file, delimiter=delimiter)
-        # noinspection PyTypeChecker
-        range_vectors = [BitVectorEntity(
-            id=row[range_id_column],
-            value=row[range_value_column],
-        ) for row in reader]
+    range_vectors = _read_bit_vector_entity_file(
+        range_file_path, encoding, delimiter,
+        id_column=range_id_column, value_column=range_value_column
+    )
 
     domain_start_idx = list(range(0, len(domain_vectors), batch_size))
     range_start_idx = list(range(0, len(range_vectors), batch_size))
@@ -165,6 +193,29 @@ def match(
                 ])
 
 
+def _read_attribute_value_entity_file(
+        entity_file_path: Path, encoding: str, delimiter: str, id_column: str
+) -> tuple[list[str], list[AttributeValueEntity]]:
+    with open(entity_file_path, "r", encoding=encoding, newline="") as f:
+        reader = csv.DictReader(f, delimiter=delimiter)
+        csv_columns = list(reader.fieldnames)
+
+        if id_column not in csv_columns:
+            raise ValueError(f"Column {id_column} not found in CSV file {entity_file_path}")
+
+        def _row_to_entity(row: dict[str, Any]) -> AttributeValueEntity:
+            return AttributeValueEntity(
+                id=str(row[id_column]),
+                attributes={
+                    # exclude ID column from attribute set
+                    k: str(v) for k, v in row.items() if k != id_column
+                }
+            )
+
+        # noinspection PyTypeChecker
+        return csv_columns, [_row_to_entity(row) for row in reader]
+
+
 @app.command()
 @click.pass_context
 @click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
@@ -194,41 +245,19 @@ def transform(
         attribute_config_path: Path | None,
         global_config_path: Path | None
 ):
-    base_url = ctx.obj["BASE_URL"]
-    batch_size = ctx.obj["BATCH_SIZE"]
-    timeout_secs = ctx.obj["TIMEOUT_SECS"]
-    delimiter = ctx.obj["DELIMITER"]
-    encoding = ctx.obj["ENCODING"]
+    base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # noinspection PyTypeChecker
     config = EntityTransformConfig(empty_value=empty_value)
 
-    with open(entity_file_path, "r", encoding=encoding, newline="") as entity_file:
-        reader = csv.DictReader(entity_file, delimiter=delimiter)
-        csv_columns = reader.fieldnames
+    # read entities
+    csv_columns, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
 
-        if entity_id_column not in csv_columns:
-            click.echo(f"Column {entity_id_column} not found in CSV file", err=True)
-            ctx.exit(1)
-
-        def _row_to_entity(row: dict[str, Any]) -> AttributeValueEntity:
-            return AttributeValueEntity(
-                id=str(row[entity_id_column]),
-                attributes={
-                    # exclude ID column from attribute set
-                    k: str(v) for k, v in row.items() if k != entity_id_column
-                }
-            )
-
-        # noinspection PyTypeChecker
-        entities = [_row_to_entity(row) for row in reader]
-
+    # read global config
     global_config = (_maybe_parse_json_file_into(global_config_path, GlobalTransformerConfig, encoding)
                      or GlobalTransformerConfig())
 
-    attribute_config = _maybe_parse_json_file_into_list_of(
-        attribute_config_path, AttributeTransformerConfig, encoding
-    ) or []
+    attribute_config_json = _maybe_read_json(attribute_config_path, encoding) or []
 
     idx = list(range(0, len(entities), batch_size))
 
@@ -240,7 +269,7 @@ def transform(
             for i in progressbar:
                 transform_response = lib.transform(EntityTransformRequest(
                     config=config, entities=entities[i:i + batch_size],
-                    attribute_transformers=attribute_config,
+                    attribute_transformers=attribute_config_json,
                     global_transformers=global_config,
                 ), base_url=base_url, timeout_secs=timeout_secs)
 
@@ -257,28 +286,36 @@ def mask():
     pass
 
 
+def common_mask_options(fn):
+    fn = click.option("-q", "--token-size", type=click.IntRange(min=2), default=2)(fn)
+    fn = click.option("--prepend-attribute-name/--no-prepend-attribute-name", default=True)(fn)
+    fn = click.option("-p", "--padding", type=str, default="")(fn)
+    fn = click.option("--hash-strategy", type=click.Choice(
+        ["double_hash", "enhanced_double_hash", "triple_hash", "random_hash"]
+    ), default="random_hash")(fn)
+    fn = click.option("-h", "--hash-algorithm", type=click.Choice([
+        "md5", "sha1", "sha256", "sha512"
+    ]), multiple=True, default=["sha256"])(fn)
+    fn = click.option("-s", "--hash-key", type=str)(fn)
+    fn = click.option(
+        "--hardener-config-path", type=click.Path(exists=True, path_type=Path), default=None
+    )(fn)
+    fn = click.option("--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None)(fn)
+    fn = click.option(
+        "--entity-id-column", type=str, default="id",
+        help="column name in entity CSV file containing ID"
+    )(fn)
+
+    return fn
+
+
 @mask.command()
 @click.pass_context
 @click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_file_path", type=click.Path(dir_okay=False, file_okay=True, path_type=Path))
 @click.argument("filter_size", type=click.IntRange(min=1))
 @click.argument("hash_values", type=click.IntRange(min=1))
-@click.option("-q", "--token-size", type=click.IntRange(min=2), default=2)
-@click.option("--prepend-attribute-name/--no-prepend-attribute-name", default=True)
-@click.option("-p", "--padding", type=str, default="")
-@click.option("--hash-strategy", type=click.Choice(
-    ["double_hash", "enhanced_double_hash", "triple_hash", "random_hash"]
-), default="random_hash")
-@click.option("-h", "--hash-algorithm", type=click.Choice([
-    "md5", "sha1", "sha256", "sha512"
-]), multiple=True, default=["sha256"])
-@click.option("-s", "--hash-key", type=str)
-@click.option("--hardener-config-path", type=click.Path(exists=True, path_type=Path), default=None)
-@click.option("--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None)
-@click.option(
-    "--entity-id-column", type=str, default="id",
-    help="column name in entity CSV file containing ID"
-)
+@common_mask_options
 def clk(
         ctx: click.Context,
         entity_file_path: Path,
@@ -295,12 +332,9 @@ def clk(
         attribute_config_path: Path | None,
         entity_id_column: str,
 ):
-    base_url = ctx.obj["BASE_URL"]
-    batch_size = ctx.obj["BATCH_SIZE"]
-    timeout_secs = ctx.obj["TIMEOUT_SECS"]
-    delimiter = ctx.obj["DELIMITER"]
-    encoding = ctx.obj["ENCODING"]
+    base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
+    # read hardeners
     hardener_json = _maybe_read_json(hardener_config_path, encoding) or []
 
     # noinspection PyTypeChecker
@@ -319,24 +353,7 @@ def clk(
         hardeners=hardener_json,
     )
 
-    with open(entity_file_path, "r", encoding=encoding, newline="") as entity_file:
-        reader = csv.DictReader(entity_file, delimiter=delimiter)
-
-        if entity_id_column not in reader.fieldnames:
-            click.echo(f"Column {entity_id_column} not found in CSV file", err=True)
-            ctx.exit(1)
-
-        def _row_to_entity(row: dict[str, Any]) -> AttributeValueEntity:
-            return AttributeValueEntity(
-                id=str(row[entity_id_column]),
-                attributes={
-                    # exclude ID column from attribute set
-                    k: str(v) for k, v in row.items() if k != entity_id_column
-                }
-            )
-
-        # noinspection PyTypeChecker
-        entities = [_row_to_entity(row) for row in reader]
+    _, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
 
     attribute_json = _maybe_read_json(attribute_config_path, encoding) or []
     idx = list(range(0, len(entities), batch_size))
