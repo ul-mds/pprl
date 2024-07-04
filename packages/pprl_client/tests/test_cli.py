@@ -61,10 +61,59 @@ def test_match(tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url,
 
     with open(output_path, mode="r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
-        assert set(reader.fieldnames) == {"domain_id", "range_id", "similarity"}
+        assert set(reader.fieldnames) == {"domain_id", "domain_file", "range_id", "range_file", "similarity"}
 
         line_count = sum([1 for _ in reader])
         assert line_count == vector_count * vector_count
+
+
+def test_match_with_single_file(
+        tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs
+):
+    domain_path = tmpdir.join("domain.csv")
+    output_path = tmpdir.join("output.csv")
+
+    _write_random_vectors_to(domain_path, base64_factory)
+    result = cli_runner.invoke(app, [
+        "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
+        "match", str(domain_path), str(output_path),
+        "-m", "jaccard", "-t", "0",
+    ])
+
+    assert result.exit_code == 1
+    assert "Must specify at least two CSV files containing vectors" in result.output
+
+
+def test_match_with_multiple_files(
+        tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs
+):
+    vector_count = 50
+
+    v1_path, v2_path, v3_path = tmpdir.join("vec1.csv"), tmpdir.join("vec2.csv"), tmpdir.join("vec3.csv")
+    all_paths = (v1_path, v2_path, v3_path)
+
+    for path in all_paths:
+        _write_random_vectors_to(path, base64_factory, n=vector_count)
+
+    # check that all files are unique
+    assert len(set([path.computehash() for path in all_paths])) == len(all_paths)
+
+    output_path = tmpdir.join("output.csv")
+    result = cli_runner.invoke(app, [
+        "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
+        "match", str(v1_path), str(v2_path), str(v3_path), str(output_path),
+        "-m", "jaccard", "-t", "0",
+    ])
+
+    assert result.exit_code == 0
+    assert output_path.check(file=1, exists=1, dir=0)
+
+    with open(output_path, mode="r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        assert set(reader.fieldnames) == {"domain_id", "domain_file", "range_id", "range_file", "similarity"}
+
+        line_count = sum([1 for _ in reader])
+        assert line_count == vector_count * vector_count * len(all_paths)
 
 
 def test_transform(

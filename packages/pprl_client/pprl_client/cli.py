@@ -156,24 +156,15 @@ def _read_bit_vector_entity_file(
 
 @app.command()
 @click.pass_context
-@click.argument("domain_file_path", type=click.Path(exists=True, path_type=Path, dir_okay=False))
-@click.argument("range_file_path", type=click.Path(exists=True, path_type=Path, dir_okay=False))
+@click.argument("vector_file_path", type=click.Path(exists=True, path_type=Path, dir_okay=False), nargs=-1)
 @click.argument("output_file_path", type=click.Path(path_type=Path, dir_okay=False))
 @click.option(
-    "--domain-id-column", type=str, default="id",
-    help="column name in domain CSV file containing vector ID"
+    "--id-column", type=str, default="id",
+    help="column name in input CSV file containing vector ID"
 )
 @click.option(
-    "--domain-value-column", type=str, default="value",
-    help="column name in domain CSV file containing vector value"
-)
-@click.option(
-    "--range-id-column", type=str, default="id",
-    help="column name in range CSV file containing vector ID"
-)
-@click.option(
-    "--range-value-column", type=str, default="value",
-    help="column name in range CSV file containing vector value"
+    "--value-column", type=str, default="value",
+    help="column name in input CSV file containing vector value"
 )
 @click.option(
     "-m", "--measure", type=click.Choice(["dice", "cosine", "jaccard"]), default="jaccard",
@@ -185,16 +176,21 @@ def _read_bit_vector_entity_file(
 )
 def match(
         ctx: click.Context,
-        domain_file_path: Path, range_file_path: Path, output_file_path: Path,
+        vector_file_path: tuple[Path, ...], output_file_path: Path,
         measure: str, threshold: float,
-        domain_id_column: str, domain_value_column: str, range_id_column: str, range_value_column: str,
+        id_column: str, value_column: str,
 ):
     """
     Match bit vectors from CSV files against each other.
 
-    DOMAIN_FILE_PATH and RANGE_FILE_PATH are the paths to the CSV files containing bit vectors.
+    VECTOR_FILE_PATH is the path to a CSV file containing bit vectors.
+    At least two files must be specified.
     OUTPUT_FILE_PATH is the path of the CSV file where the matches should be written to.
     """
+    if len(vector_file_path) < 2:
+        click.echo("Must specify at least two CSV files containing vectors", err=True)
+        ctx.exit(1)
+
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # noinspection PyTypeChecker
@@ -203,44 +199,49 @@ def match(
         threshold=threshold,
     )
 
-    domain_vectors = _read_bit_vector_entity_file(
-        domain_file_path, encoding, delimiter,
-        id_column=domain_id_column, value_column=domain_value_column
-    )
+    vectors_lst = [_read_bit_vector_entity_file(
+        path, encoding, delimiter, id_column, value_column
+    ) for path in vector_file_path]
 
-    range_vectors = _read_bit_vector_entity_file(
-        range_file_path, encoding, delimiter,
-        id_column=range_id_column, value_column=range_value_column
-    )
+    with open(output_file_path, mode="w", encoding=encoding, newline="") as f:
+        writer = csv.DictWriter(f, delimiter=delimiter, fieldnames=[
+            "domain_id", "domain_file", "range_id", "range_file", "similarity"
+        ])
 
-    domain_start_idx = list(range(0, len(domain_vectors), batch_size))
-    range_start_idx = list(range(0, len(range_vectors), batch_size))
-
-    idx_pairs = list(itertools.product(domain_start_idx, range_start_idx))
-
-    with open(output_file_path, "w", encoding=encoding, newline="") as output_file:
-        writer = csv.DictWriter(output_file, delimiter=delimiter, fieldnames=["domain_id", "range_id", "similarity"])
         writer.writeheader()
 
-        with click.progressbar(idx_pairs, label="Matching bit vectors") as progressbar:
-            for idx_tpl in progressbar:
-                domain_idx, range_idx = idx_tpl
+        for i in range(0, len(vectors_lst) - 1):
+            for j in range(i + 1, len(vectors_lst)):
+                domain_vectors, range_vectors = vectors_lst[i], vectors_lst[j]
+                domain_file_name, range_file_name = vector_file_path[i].name, vector_file_path[j].name
 
-                match_request = MatchRequest(
-                    config=match_config,
-                    domain=domain_vectors[domain_idx:domain_idx + batch_size],
-                    range=range_vectors[range_idx:range_idx + batch_size],
-                )
+                domain_start_idx = list(range(0, len(domain_vectors), batch_size))
+                range_start_idx = list(range(0, len(range_vectors), batch_size))
+                idx_pairs = list(itertools.product(domain_start_idx, range_start_idx))
 
-                match_response = lib.match(match_request, base_url=base_url, timeout_secs=timeout_secs)
+                with click.progressbar(
+                        idx_pairs, label=f"Matching bit vectors from {domain_file_name} and {range_file_name}"
+                ) as progressbar:
+                    for idx_tpl in progressbar:
+                        domain_idx, range_idx = idx_tpl[0], idx_tpl[1]
 
-                writer.writerows([
-                    {
-                        "domain_id": matched_vectors.domain.id,
-                        "range_id": matched_vectors.range.id,
-                        "similarity": matched_vectors.similarity,
-                    } for matched_vectors in match_response.matches
-                ])
+                        match_request = MatchRequest(
+                            config=match_config,
+                            domain=domain_vectors[domain_idx:domain_idx + batch_size],
+                            range=range_vectors[range_idx:range_idx + batch_size],
+                        )
+
+                        match_response = lib.match(match_request, base_url=base_url, timeout_secs=timeout_secs)
+
+                        writer.writerows([
+                            {
+                                "domain_id": matched_vectors.domain.id,
+                                "domain_file": domain_file_name,
+                                "range_id": matched_vectors.range.id,
+                                "range_file": range_file_name,
+                                "similarity": matched_vectors.similarity
+                            } for matched_vectors in match_response.matches
+                        ])
 
 
 def _read_attribute_value_entity_file(
