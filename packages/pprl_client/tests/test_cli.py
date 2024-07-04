@@ -119,14 +119,14 @@ def test_transform(
         assert line_count == entity_count
 
 
-def test_mask_clk(tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs,
-                  faker):
+def _generate_entities_for_mask(tmpdir: py.path.local, uuid4_factory, faker, n=1_000):
     entity_path = tmpdir.join("entities.csv")
-    entity_count = 1_000
+    _write_random_persons_to(entity_path, uuid4_factory, faker, n=n)
 
-    _write_random_persons_to(entity_path, uuid4_factory, faker, n=entity_count)
+    return entity_path
 
-    # set up hardeners
+
+def _generate_hardeners_for_mask(tmpdir: py.path.local):
     hardener_json_path = tmpdir.join("hardener.json")
 
     with open(hardener_json_path, mode="w", encoding="utf-8") as f:
@@ -143,20 +143,70 @@ def test_mask_clk(tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_ur
             }
         ], f)
 
-    # set up attribute config
+    return hardener_json_path
+
+
+def _generate_attributes_for_mask(tmpdir: py.path.local, weighted: bool):
     attribute_json_path = tmpdir.join("attributes.json")
 
-    with open(attribute_json_path, mode="w", encoding="utf-8") as f:
-        json.dump([
+    if weighted:
+        attribute_json_content = [
+            {
+                "attribute_name": "first_name",
+                "weight": 4,
+                "average_token_count": 10
+            },
+            {
+                "attribute_name": "last_name",
+                "weight": 4,
+                "average_token_count": 8
+            },
+            {
+                "attribute_name": "gender",
+                "weight": 1,
+                "average_token_count": 6
+            },
+            {
+                "attribute_name": "date_of_birth",
+                "weight": 2,
+                "average_token_count": 10
+            },
+        ]
+    else:
+        attribute_json_content = [
             {
                 "attribute_name": "first_name",
                 "salt": {
                     "value": "foobar"
                 }
             }
-        ], f)
+        ]
 
+    with open(attribute_json_path, mode="w", encoding="utf-8") as f:
+        json.dump(attribute_json_content, f)
+
+    return attribute_json_path
+
+
+def _check_mask_output(output_path: py.path.local, expected_line_count=1_000):
+    assert output_path.check(file=1, exists=1, dir=0)
+
+    with open(output_path, mode="r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        assert set(reader.fieldnames) == {"id", "value"}
+
+        line_count = sum([1 for _ in reader])
+        assert line_count == expected_line_count
+
+
+def test_mask_clk(tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs,
+                  faker):
+    entity_count = 1_000
+    entity_path = _generate_entities_for_mask(tmpdir, uuid4_factory, faker, n=entity_count)
+    hardener_json_path = _generate_hardeners_for_mask(tmpdir)
+    attribute_json_path = _generate_attributes_for_mask(tmpdir, False)
     output_path = tmpdir.join("output.csv")
+
     result = cli_runner.invoke(app, [
         "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
         "mask", "clk", str(entity_path), str(output_path), "512", "5",
@@ -164,69 +214,18 @@ def test_mask_clk(tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_ur
     ])
 
     assert result.exit_code == 0
-    assert output_path.check(file=1, exists=1, dir=0)
-
-    with open(output_path, mode="r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        assert set(reader.fieldnames) == {"id", "value"}
-
-        line_count = sum([1 for _ in reader])
-        assert line_count == entity_count
+    _check_mask_output(output_path, entity_count)
 
 
 def test_mask_rbf(
         tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs, faker
 ):
-    entity_path = tmpdir.join("entities.csv")
     entity_count = 1_000
-
-    _write_random_persons_to(entity_path, uuid4_factory, faker, n=entity_count)
-
-    # set up hardeners
-    hardener_json_path = tmpdir.join("hardener.json")
-
-    with open(hardener_json_path, mode="w", encoding="utf-8") as f:
-        json.dump([
-            {
-                "name": "permute",
-                "seed": 727
-            },
-            {
-                "name": "rehash",
-                "window_size": 8,
-                "window_step": 8,
-                "samples": 2
-            }
-        ], f)
-
-    # set up attribute config
-    attribute_json_path = tmpdir.join("attributes.json")
-
-    with open(attribute_json_path, mode="w", encoding="utf-8") as f:
-        json.dump([
-            {
-                "attribute_name": "first_name",
-                "weight": 4,
-                "average_token_count": 10
-            },
-            {
-                "attribute_name": "last_name",
-                "weight": 4,
-                "average_token_count": 8
-            },
-            {
-                "attribute_name": "gender",
-                "weight": 1,
-                "average_token_count": 6
-            },
-            {
-                "attribute_name": "date_of_birth",
-                "weight": 2,
-                "average_token_count": 10
-            },
-        ], f)
-
+    entity_path = _generate_entities_for_mask(tmpdir, uuid4_factory, faker, n=entity_count)
+    hardener_json_path = _generate_hardeners_for_mask(tmpdir)
+    attribute_json_path = _generate_attributes_for_mask(tmpdir, True)
     output_path = tmpdir.join("output.csv")
+
     result = cli_runner.invoke(app, [
         "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
         "mask", "rbf", str(entity_path), str(output_path), "5", "727",
@@ -234,69 +233,18 @@ def test_mask_rbf(
     ])
 
     assert result.exit_code == 0
-    assert output_path.check(file=1, exists=1, dir=0)
-
-    with open(output_path, mode="r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        assert set(reader.fieldnames) == {"id", "value"}
-
-        line_count = sum([1 for _ in reader])
-        assert line_count == entity_count
+    _check_mask_output(output_path, entity_count)
 
 
 def test_mask_clkrbf(
         tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs, faker
 ):
-    entity_path = tmpdir.join("entities.csv")
     entity_count = 1_000
-
-    _write_random_persons_to(entity_path, uuid4_factory, faker, n=entity_count)
-
-    # set up hardeners
-    hardener_json_path = tmpdir.join("hardener.json")
-
-    with open(hardener_json_path, mode="w", encoding="utf-8") as f:
-        json.dump([
-            {
-                "name": "permute",
-                "seed": 727
-            },
-            {
-                "name": "rehash",
-                "window_size": 8,
-                "window_step": 8,
-                "samples": 2
-            }
-        ], f)
-
-    # set up attribute config
-    attribute_json_path = tmpdir.join("attributes.json")
-
-    with open(attribute_json_path, mode="w", encoding="utf-8") as f:
-        json.dump([
-            {
-                "attribute_name": "first_name",
-                "weight": 4,
-                "average_token_count": 10
-            },
-            {
-                "attribute_name": "last_name",
-                "weight": 4,
-                "average_token_count": 8
-            },
-            {
-                "attribute_name": "gender",
-                "weight": 1,
-                "average_token_count": 6
-            },
-            {
-                "attribute_name": "date_of_birth",
-                "weight": 2,
-                "average_token_count": 10
-            },
-        ], f)
-
+    entity_path = _generate_entities_for_mask(tmpdir, uuid4_factory, faker, n=entity_count)
+    hardener_json_path = _generate_hardeners_for_mask(tmpdir)
+    attribute_json_path = _generate_attributes_for_mask(tmpdir, True)
     output_path = tmpdir.join("output.csv")
+
     result = cli_runner.invoke(app, [
         "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
         "mask", "clkrbf", str(entity_path), str(output_path), "5",
@@ -304,11 +252,4 @@ def test_mask_clkrbf(
     ])
 
     assert result.exit_code == 0
-    assert output_path.check(file=1, exists=1, dir=0)
-
-    with open(output_path, mode="r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        assert set(reader.fieldnames) == {"id", "value"}
-
-        line_count = sum([1 for _ in reader])
-        assert line_count == entity_count
+    _check_mask_output(output_path, entity_count)
