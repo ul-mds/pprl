@@ -54,6 +54,45 @@ def _destructure_context(ctx: click.Context) -> tuple[str, int, int, str, str]:
     )
 
 
+def _mask_and_write_to_output_file(
+        mask_config: MaskConfig,
+        entity_file_path: Path,
+        output_file_path: Path,
+        attribute_config_file_path: Path | None,
+        encoding: str,
+        delimiter: str,
+        entity_id_column: str,
+        batch_size: int,
+        base_url: str,
+        timeout_secs: int
+):
+    # read entities
+    _, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
+    # read attribute json
+    attribute_json = _maybe_read_json(attribute_config_file_path, encoding) or []
+    # determine indices
+    idx = list(range(0, len(entities), batch_size))
+
+    with open(output_file_path, mode="w", encoding=encoding, newline="") as f:
+        writer = csv.DictWriter(f, delimiter=delimiter, fieldnames=[entity_id_column, "value"])
+        writer.writeheader()
+
+        with click.progressbar(idx, label="Masking entities") as progressbar:
+            for i in progressbar:
+                mask_response = lib.mask(EntityMaskRequest(
+                    config=mask_config,
+                    entities=entities[i:i + batch_size],
+                    attributes=attribute_json
+                ), base_url=base_url, timeout_secs=timeout_secs)
+
+                writer.writerows([
+                    {
+                        entity_id_column: entity.id,
+                        "value": entity.value
+                    } for entity in mask_response.entities
+                ])
+
+
 @click.group()
 @click.pass_context
 @click.option("--base-url", default="http://localhost:8000")
@@ -353,29 +392,10 @@ def clk(
         hardeners=hardener_json,
     )
 
-    _, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
-
-    attribute_json = _maybe_read_json(attribute_config_path, encoding) or []
-    idx = list(range(0, len(entities), batch_size))
-
-    with open(output_file_path, mode="w", encoding=encoding, newline="") as output_file:
-        writer = csv.DictWriter(output_file, delimiter=delimiter, fieldnames=[entity_id_column, "value"])
-        writer.writeheader()
-
-        with click.progressbar(idx, label="Masking entities") as progressbar:
-            for i in progressbar:
-                mask_response = lib.mask(EntityMaskRequest(
-                    config=mask_config,
-                    entities=entities[i:i + batch_size],
-                    attributes=attribute_json,
-                ), base_url=base_url, timeout_secs=timeout_secs)
-
-                writer.writerows([
-                    {
-                        entity_id_column: entity.id,
-                        "value": entity.value
-                    } for entity in mask_response.entities
-                ])
+    _mask_and_write_to_output_file(
+        mask_config, entity_file_path, output_file_path,
+        attribute_config_path, encoding, delimiter, entity_id_column, batch_size, base_url, timeout_secs
+    )
 
 
 @mask.command()
@@ -422,29 +442,10 @@ def rbf(
         hardeners=hardener_json,
     )
 
-    _, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
-
-    attribute_json = _maybe_read_json(attribute_config_path, encoding) or []
-    idx = list(range(0, len(entities), batch_size))
-
-    with open(output_file_path, mode="w", encoding=encoding, newline="") as output_file:
-        writer = csv.DictWriter(output_file, delimiter=delimiter, fieldnames=[entity_id_column, "value"])
-        writer.writeheader()
-
-        with click.progressbar(idx, label="Masking entities") as progressbar:
-            for i in progressbar:
-                mask_response = lib.mask(EntityMaskRequest(
-                    config=mask_config,
-                    entities=entities[i:i + batch_size],
-                    attributes=attribute_json,
-                ), base_url=base_url, timeout_secs=timeout_secs)
-
-                writer.writerows([
-                    {
-                        entity_id_column: entity.id,
-                        "value": entity.value
-                    } for entity in mask_response.entities
-                ])
+    _mask_and_write_to_output_file(
+        mask_config, entity_file_path, output_file_path,
+        attribute_config_path, encoding, delimiter, entity_id_column, batch_size, base_url, timeout_secs
+    )
 
 
 @mask.command()
@@ -489,29 +490,10 @@ def clkrbf(
         hardeners=hardener_json,
     )
 
-    _, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
-
-    attribute_json = _maybe_read_json(attribute_config_path, encoding) or []
-    idx = list(range(0, len(entities), batch_size))
-
-    with open(output_file_path, mode="w", encoding=encoding, newline="") as output_file:
-        writer = csv.DictWriter(output_file, delimiter=delimiter, fieldnames=[entity_id_column, "value"])
-        writer.writeheader()
-
-        with click.progressbar(idx, label="Masking entities") as progressbar:
-            for i in progressbar:
-                mask_response = lib.mask(EntityMaskRequest(
-                    config=mask_config,
-                    entities=entities[i:i + batch_size],
-                    attributes=attribute_json,
-                ), base_url=base_url, timeout_secs=timeout_secs)
-
-                writer.writerows([
-                    {
-                        entity_id_column: entity.id,
-                        "value": entity.value
-                    } for entity in mask_response.entities
-                ])
+    _mask_and_write_to_output_file(
+        mask_config, entity_file_path, output_file_path,
+        attribute_config_path, encoding, delimiter, entity_id_column, batch_size, base_url, timeout_secs
+    )
 
 
 def run_cli():
