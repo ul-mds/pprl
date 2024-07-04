@@ -62,6 +62,7 @@ def _mask_and_write_to_output_file(
         encoding: str,
         delimiter: str,
         entity_id_column: str,
+        entity_value_column: str,
         batch_size: int,
         base_url: str,
         timeout_secs: int
@@ -88,7 +89,7 @@ def _mask_and_write_to_output_file(
                 writer.writerows([
                     {
                         entity_id_column: entity.id,
-                        "value": entity.value
+                        entity_value_column: entity.value
                     } for entity in mask_response.entities
                 ])
 
@@ -344,6 +345,10 @@ def common_mask_options(fn):
         "--entity-id-column", type=str, default="id",
         help="column name in entity CSV file containing ID"
     )(fn)
+    fn = click.option(
+        "--entity-value-column", type=str, default="value",
+        help="column name in output CSV file containing vector value"
+    )(fn)
 
     return fn
 
@@ -370,6 +375,7 @@ def clk(
         hardener_config_path: Path | None,
         attribute_config_path: Path | None,
         entity_id_column: str,
+        entity_value_column: str
 ):
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
@@ -394,7 +400,8 @@ def clk(
 
     _mask_and_write_to_output_file(
         mask_config, entity_file_path, output_file_path,
-        attribute_config_path, encoding, delimiter, entity_id_column, batch_size, base_url, timeout_secs
+        attribute_config_path, encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url,
+        timeout_secs
     )
 
 
@@ -420,6 +427,7 @@ def rbf(
         hardener_config_path: Path | None,
         attribute_config_path: Path | None,
         entity_id_column: str,
+        entity_value_column: str
 ):
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
@@ -444,7 +452,8 @@ def rbf(
 
     _mask_and_write_to_output_file(
         mask_config, entity_file_path, output_file_path,
-        attribute_config_path, encoding, delimiter, entity_id_column, batch_size, base_url, timeout_secs
+        attribute_config_path, encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url,
+        timeout_secs
     )
 
 
@@ -468,6 +477,7 @@ def clkrbf(
         hardener_config_path: Path | None,
         attribute_config_path: Path | None,
         entity_id_column: str,
+        entity_value_column: str
 ):
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
@@ -492,7 +502,8 @@ def clkrbf(
 
     _mask_and_write_to_output_file(
         mask_config, entity_file_path, output_file_path,
-        attribute_config_path, encoding, delimiter, entity_id_column, batch_size, base_url, timeout_secs
+        attribute_config_path, encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url,
+        timeout_secs
     )
 
 
