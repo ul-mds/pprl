@@ -276,11 +276,6 @@ def _mask_clkrbf(mask_req: EntityMaskRequest):
     return entity_bas
 
 
-def _compute_rbf_size_for_attribute(attr_conf: WeightedAttributeConfig, attr_bitarray_size: int, total_weight: float):
-    weight = attr_conf.weight
-    return int(math.ceil(attr_bitarray_size * total_weight / weight))
-
-
 def _mask_rbf(mask_req: EntityMaskRequest):
     # 0) set up vars
     hash_fn = _resolve_hash_function_config(mask_req.config)
