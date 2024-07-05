@@ -8,6 +8,7 @@ The [packages](./packages/) directory contains several Python modules.
 These modules cover different functionalities for performing PPRL.
 Each module is its own project with its own dependencies.
 
+- [`pprl_client`](./packages/pprl_client/): HTTP-based client for using the PPRL service
 - [`pprl_core`](./packages/pprl_core/): primitives for Bloom filter based PPRL
 - [`pprl_model`](./packages/pprl_model/): data models for use in a HTTP-based service with PPRL in mind
 - [`pprl_service`](./packages/pprl_service/): HTTP-based service for performing PPRL
@@ -54,6 +55,11 @@ $ docker run --rm -p 8000:8000 pprl_service:dev
 ```
 
 You can then access the service documentation in your browser at http://localhost:8000/docs.
+Alternatively, you can also use a pre-built Docker image.
+
+```
+$ docker run --rm -p 8000:8000 ghcr.io/ul-mds/pprl:0.1.0
+```
 
 # License
 
