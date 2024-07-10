@@ -11,6 +11,7 @@ cd "${DIR}/.." || exit 2
 
 for PROJECT in $PROJECTS
 do
+    printf "\n=> %s\n\n" "$PROJECT"
     cd "$DIR/../packages/$PROJECT" || exit 2
     poetry "$@"
 done
