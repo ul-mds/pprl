@@ -10,8 +10,8 @@ on:
       - main
     tags:
       - "v*"
-    paths:
-      - "!scripts/**"
+    paths-ignore:
+      - "scripts/**"
   pull_request:
     types:
       - opened
