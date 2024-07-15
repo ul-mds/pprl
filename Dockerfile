@@ -5,6 +5,7 @@ WORKDIR /tmp
 COPY packages/pprl_service/poetry.lock packages/pprl_service/pyproject.toml /tmp/
 
 RUN python -m pip install poetry==1.8.3 && \
+    poetry self add poetry-plugin-export && \
     poetry export -f requirements.txt -o requirements.txt -n
 
 FROM python:3.12-slim
