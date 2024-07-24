@@ -187,6 +187,19 @@ def _attribute_config_list_to_dict(
     return {attr_conf.attribute_name: attr_conf for attr_conf in attributes or []}
 
 
+def _safe_tokenize(entity_id: str, attr_name: str, attr_value: str, q: int, padding: str):
+    tokens = common.tokenize(attr_value, q, padding)
+
+    if len(tokens) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"value for `{attr_name}` on entity with ID `{entity_id}` did not produce any tokens - decrease the "
+                   f"token size or add sufficient padding"
+        )
+
+    return tokens
+
+
 def _mask_clk(mask_req: EntityMaskRequest):
     # 0) set up vars
     hash_fn = _resolve_hash_function_config(mask_req.config)
@@ -211,7 +224,7 @@ def _mask_clk(mask_req: EntityMaskRequest):
             salt = _resolve_salt(entity, attr_config)
 
             # 1.3) tokenize attribute value and insert into bitarray
-            for token in common.tokenize(attr_value, token_size, padding):
+            for token in _safe_tokenize(entity.id, attr_name, attr_value, token_size, padding):
                 if mask_req.config.prepend_attribute_name:
                     token = attr_name + token
 
@@ -265,7 +278,7 @@ def _mask_clkrbf(mask_req: EntityMaskRequest):
             salt = _resolve_salt(entity, attr_conf)
 
             # 4.4) tokenize attribute value and insert into bitarray
-            for token in common.tokenize(attr_value, token_size, padding):
+            for token in _safe_tokenize(entity.id, attr_name, attr_value, token_size, padding):
                 if mask_req.config.prepend_attribute_name:
                     token = attr_name + token
 
@@ -328,7 +341,7 @@ def _mask_rbf(mask_req: EntityMaskRequest):
             salt = _resolve_salt(entity, attr_conf)
 
             # 4.1.3) tokenize attribute value and insert into bitarray
-            for token in common.tokenize(attr_value, token_size, padding):
+            for token in _safe_tokenize(entity.id, attr_name, attr_value, token_size, padding):
                 if mask_req.config.prepend_attribute_name:
                     token = attr_name + token
 
