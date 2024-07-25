@@ -642,13 +642,13 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pprl-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Facilities for performing privacy-preserving record linkage with Bloom filters."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "pprl_core-0.1.0-py3-none-any.whl", hash = "sha256:ae1d889947b9d6c1113722920d5189c8e8efbb4d63d4fddc1f8bdaa961f1913f"},
-    {file = "pprl_core-0.1.0.tar.gz", hash = "sha256:5f63c74323a32419eed7e844b1094587b3cdc3fd3fb558878d97a7c82734e745"},
+    {file = "pprl_core-0.1.1-py3-none-any.whl", hash = "sha256:469c24add0d438dcd95a0496f774de612f95d8e49ce6bdaa69857457c30e828f"},
+    {file = "pprl_core-0.1.1.tar.gz", hash = "sha256:1c05b8145d6d1990d255b14d3921c93bb6ef0c280d350a224be97414662a639d"},
 ]
 
 [package.dependencies]
@@ -1417,4 +1417,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "c379498d405cf3a8af49f0c4f2747ce7a83ce9b9cfb5e79c64306ca3d62f5125"
+content-hash = "191b8cb5c2560e07c3ceeba4a5442d0c1ac55dca92877e2d9866e2cabbd3b182"
