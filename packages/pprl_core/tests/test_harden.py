@@ -177,6 +177,22 @@ def test_rehash_different_hash_functions(bitarray_factory):
     assert ba_hardened_1 != ba_hardened_2
 
 
+@pytest.mark.parametrize(
+    "ba_size,window_size,window_step,expected_windows",
+    [
+        (16, 16, 16, [0]),
+        (16, 8, 8, [0, 8]),
+        (16, 16, 8, [0]),
+        (16, 4, 2, [0, 2, 4, 6, 8, 10, 12]),
+        (16, 32, 8, []),
+        (16, 12, 4, [0, 4])
+    ],
+)
+def test_compute_rehash_window_range(ba_size, window_size, window_step, expected_windows):
+    windows = list(harden._compute_rehash_window_range(ba_size, window_size, window_step))
+    assert expected_windows == windows
+
+
 def test_rehash_same_instance(bitarray_factory):
     harden_rehash = harden.rehash(8, 8, 3)
 

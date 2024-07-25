@@ -129,6 +129,10 @@ def rule_90() -> HardenerFn:
     return _harden
 
 
+def _compute_rehash_window_range(ba_len: int, window_size: int, window_step: int):
+    return range(0, ba_len - window_size + 1, window_step)
+
+
 def rehash(window_size: int, window_step: int, k: int) -> HardenerFn:
     """
     Harden a bitarray by rehashing its bits.
@@ -144,7 +148,7 @@ def rehash(window_size: int, window_step: int, k: int) -> HardenerFn:
     def _harden(ba: bitarray) -> bitarray:
         ba_new = ba.copy()
 
-        for i in range(0, len(ba), window_step):
+        for i in _compute_rehash_window_range(len(ba), window_size, window_step):
             ba_window = ba[i:i + window_size]
             # bytes from bitarray need to be padded because unpack() 
             # requires at least four bytes to work
