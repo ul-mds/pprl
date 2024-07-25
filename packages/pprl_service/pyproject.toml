@@ -25,7 +25,7 @@ pprl_service = "pprl_service.main:run_server"
 python = "^3.10"
 fastapi = "^0.111.0"
 pprl-model = "^0.1.0"
-pprl-core = "^0.1.0"
+pprl-core = "^0.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
