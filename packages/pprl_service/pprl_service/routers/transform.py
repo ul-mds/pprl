@@ -7,7 +7,7 @@ from pprl_core.transform import StringTransformFn, normalize, character_filter, 
     phonetic_code
 from pprl_model import Transformer, NormalizationTransformer, CharacterFilterTransformer, NumberTransformer, \
     DateTimeTransformer, MappingTransformer, AttributeValueEntity, PhoneticCodeAlgorithm, PhoneticCodeTransformer, \
-    AnyTransformer, EntityTransformConfig, EmptyValueHandling, EntityTransformRequest, EntityTransformResponse
+    AnyTransformer, TransformConfig, EmptyValueHandling, EntityTransformRequest, EntityTransformResponse
 from pydantic import BaseModel
 from pyphonetics import Soundex, Metaphone, RefinedSoundex, FuzzySoundex
 from pyphonetics.phonetics import PhoneticAlgorithm
@@ -81,7 +81,7 @@ def _resolve_transformer(tf: AnyTransformer):
 
 
 def _try_transform(
-        config: EntityTransformConfig,
+        config: TransformConfig,
         entity: AttributeValueEntity,
         value: str,
         transform_fn: StringTransformFn

@@ -4,7 +4,7 @@ import pprl_core
 from bitarray import bitarray
 from fastapi import APIRouter, HTTPException
 from pprl_core.similarity import SimilarityFn
-from pprl_model import SimilarityMeasure, MatchRequest, MatchResponse, Match
+from pprl_model import SimilarityMeasure, VectorMatchRequest, VectorMatchResponse, Match
 from starlette import status
 
 router = APIRouter()
@@ -16,7 +16,7 @@ _similarity_mapping: dict[SimilarityMeasure, SimilarityFn] = {
 }
 
 
-def _construct_bitarray_lookup_dict(match_req: MatchRequest) -> dict[str, bitarray]:
+def _construct_bitarray_lookup_dict(match_req: VectorMatchRequest) -> dict[str, bitarray]:
     bitarray_lookup_dict: dict[str, bitarray] = {}
     failed_b64decode_entity_ids: set[str] = set()
 
@@ -37,7 +37,7 @@ def _construct_bitarray_lookup_dict(match_req: MatchRequest) -> dict[str, bitarr
 
 
 @router.post("/")
-async def perform_matching(match_req: MatchRequest) -> MatchResponse:
+async def perform_matching(match_req: VectorMatchRequest) -> VectorMatchResponse:
     sim_measure = match_req.config.measure
     sim_fn = _similarity_mapping.get(sim_measure)
 
@@ -64,7 +64,7 @@ async def perform_matching(match_req: MatchRequest) -> MatchResponse:
                     similarity=similarity,
                 ))
 
-    return MatchResponse(
+    return VectorMatchResponse(
         config=match_req.config,
         matches=matches,
     )

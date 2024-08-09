@@ -1,4 +1,4 @@
-from pprl_model import MatchConfig, SimilarityMeasure, MatchRequest, MatchResponse, Match
+from pprl_model import MatchConfig, SimilarityMeasure, VectorMatchRequest, VectorMatchResponse, Match
 from starlette import status
 
 
@@ -8,7 +8,7 @@ def test_match(test_client, bit_vector_entity_factory):
         measure=SimilarityMeasure.jaccard,
         threshold=1,
     )
-    match_request = MatchRequest(
+    match_request = VectorMatchRequest(
         config=config,
         domain=[exact_match_entity, bit_vector_entity_factory()],
         range=[exact_match_entity, bit_vector_entity_factory()],
@@ -17,7 +17,7 @@ def test_match(test_client, bit_vector_entity_factory):
     r = test_client.post("/match", json=match_request.model_dump())
     assert r.status_code == status.HTTP_200_OK
 
-    match_response = MatchResponse(**r.json())
+    match_response = VectorMatchResponse(**r.json())
 
     assert match_response.config == config
     assert match_response.matches == [
@@ -33,7 +33,7 @@ def test_match_404_on_invalid_base64(test_client, bit_vector_entity_factory):
     valid_entity, invalid_entity = bit_vector_entity_factory(), bit_vector_entity_factory()
     invalid_entity.value = "=A="  # invalid character for b64
 
-    match_request = MatchRequest(
+    match_request = VectorMatchRequest(
         config=MatchConfig(
             measure=SimilarityMeasure.jaccard,
             threshold=1,
