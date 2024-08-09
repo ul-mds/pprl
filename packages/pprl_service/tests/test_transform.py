@@ -1,4 +1,4 @@
-from pprl_model import EntityTransformRequest, EntityTransformConfig, EmptyValueHandling, AttributeValueEntity, \
+from pprl_model import EntityTransformRequest, TransformConfig, EmptyValueHandling, AttributeValueEntity, \
     CharacterFilterTransformer, AttributeTransformerConfig, EntityTransformResponse, DateTimeTransformer, \
     MappingTransformer, NormalizationTransformer, NumberTransformer, PhoneticCodeTransformer, GlobalTransformerConfig, \
     PhoneticCodeAlgorithm
@@ -7,7 +7,7 @@ from starlette import status
 
 def test_character_filter(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[AttributeValueEntity(id="001", attributes={"foo": "bar$"})],
         attribute_transformers=[
             AttributeTransformerConfig(
@@ -31,7 +31,7 @@ def test_character_filter(test_client):
 
 def test_date_time(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[AttributeValueEntity(id="001", attributes={"foo": "29.06.1998"})],
         attribute_transformers=[
             AttributeTransformerConfig(
@@ -57,7 +57,7 @@ def test_date_time(test_client):
 
 def test_mapping(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[AttributeValueEntity(id="001", attributes={"foo": "bar"})],
         attribute_transformers=[
             AttributeTransformerConfig(
@@ -81,7 +81,7 @@ def test_mapping(test_client):
 
 def test_mapping_with_default(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[AttributeValueEntity(id="001", attributes={"foo": "bar"})],
         attribute_transformers=[
             AttributeTransformerConfig(
@@ -107,7 +107,7 @@ def test_mapping_with_default(test_client):
 
 def test_mapping_with_inline(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[AttributeValueEntity(id="001", attributes={"foo": "bar"})],
         attribute_transformers=[
             AttributeTransformerConfig(
@@ -131,7 +131,7 @@ def test_mapping_with_inline(test_client):
 
 def test_normalize(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[AttributeValueEntity(id="001", attributes={"foo": "  b  ár "})],
         attribute_transformers=[
             AttributeTransformerConfig(
@@ -154,7 +154,7 @@ def test_normalize(test_client):
 
 def test_number(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[
             AttributeValueEntity(
                 id="001", attributes={"bar1": "0012.345", "bar2": "0012.345"}
@@ -186,7 +186,7 @@ def test_number(test_client):
 
 def test_phonetic(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[AttributeValueEntity(id="001", attributes={"foo": "bar"})],
         attribute_transformers=[
             AttributeTransformerConfig(
@@ -212,7 +212,7 @@ def test_phonetic(test_client):
 
 def test_global_transformers(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[
             AttributeValueEntity(
                 id="001", attributes={"bar1": "  12.345  ", "bar2": "  12.345  "}
@@ -248,7 +248,7 @@ def test_global_transformers(test_client):
 
 def test_ignore_on_empty_values(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+        config=TransformConfig(empty_value=EmptyValueHandling.ignore),
         entities=[AttributeValueEntity(id="001", attributes={"foo": ""})],
         attribute_transformers=[
             AttributeTransformerConfig(
@@ -268,7 +268,7 @@ def test_ignore_on_empty_values(test_client):
 
 def test_skip_on_empty_values(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.skip),
+        config=TransformConfig(empty_value=EmptyValueHandling.skip),
         entities=[AttributeValueEntity(id="001", attributes={"foo": ""})],
         attribute_transformers=[
             AttributeTransformerConfig(
@@ -292,7 +292,7 @@ def test_skip_on_empty_values(test_client):
 
 def test_error_on_empty_values(test_client):
     tf_req = EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.error),
+        config=TransformConfig(empty_value=EmptyValueHandling.error),
         entities=[AttributeValueEntity(id="001", attributes={"foo": ""})],
         attribute_transformers=[
             AttributeTransformerConfig(
