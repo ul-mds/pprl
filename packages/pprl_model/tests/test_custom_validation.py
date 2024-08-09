@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from pprl_model import EntityTransformRequest, EntityTransformConfig, EmptyValueHandling, AttributeValueEntity
+from pprl_model import EntityTransformRequest, TransformConfig, EmptyValueHandling, AttributeValueEntity
 from pprl_model.mask import AttributeSalt, RBFFilter, CLKRBFFilter, EntityMaskRequest, MaskConfig, HashConfig, \
     HashFunction, HashAlgorithm, DoubleHash, StaticAttributeConfig, CLKFilter, WeightedAttributeConfig, FilterType
 
@@ -9,7 +9,7 @@ from pprl_model.mask import AttributeSalt, RBFFilter, CLKRBFFilter, EntityMaskRe
 def test_entity_transform_request_no_transformers(uuid4):
     with pytest.raises(ValidationError) as e:
         EntityTransformRequest(
-            config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+            config=TransformConfig(empty_value=EmptyValueHandling.ignore),
             entities=[
                 AttributeValueEntity(
                     id=uuid4(),

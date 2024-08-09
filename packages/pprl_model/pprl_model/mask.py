@@ -156,10 +156,20 @@ class WeightedAttributeConfig(ParentModel):
     average_token_count: confloat(gt=0)
 
 
-class EntityMaskRequest(ParentModel):
+class BaseMaskRequest(ParentModel):
     config: MaskConfig
-    entities: list[AttributeValueEntity] = Field(min_length=1)
     attributes: list[WeightedAttributeConfig] | list[StaticAttributeConfig] = Field(default_factory=list)
+
+    def with_entities(self, entities: list[AttributeValueEntity]) -> "EntityMaskRequest":
+        return EntityMaskRequest(
+            config=self.config,
+            attributes=self.attributes,
+            entities=entities,
+        )
+
+
+class EntityMaskRequest(BaseMaskRequest):
+    entities: list[AttributeValueEntity] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_attribute_type(self) -> Self:
