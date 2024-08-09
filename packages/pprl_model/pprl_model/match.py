@@ -16,8 +16,18 @@ class MatchConfig(ParentModel):
     threshold: confloat(ge=0, le=1)
 
 
-class MatchRequest(ParentModel):
+class BaseMatchRequest(ParentModel):
     config: MatchConfig
+
+    def with_vectors(self, domain_lst: list[BitVectorEntity], range_lst: list[BitVectorEntity]) -> "VectorMatchRequest":
+        return VectorMatchRequest(
+            config=self.config,
+            domain=domain_lst,
+            range=range_lst,
+        )
+
+
+class VectorMatchRequest(BaseMatchRequest):
     domain: list[BitVectorEntity] = Field(min_length=1)
     range: list[BitVectorEntity] = Field(min_length=1)
 
@@ -28,6 +38,6 @@ class Match(ParentModel):
     similarity: float
 
 
-class MatchResponse(ParentModel):
+class VectorMatchResponse(ParentModel):
     config: MatchConfig
     matches: list[Match]

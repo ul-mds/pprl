@@ -13,7 +13,7 @@ class EmptyValueHandling(str, Enum):
     skip = "skip"
 
 
-class EntityTransformConfig(ParentModel):
+class TransformConfig(ParentModel):
     empty_value: EmptyValueHandling
 
 
@@ -82,22 +82,33 @@ class GlobalTransformerConfig(ParentModel):
     after: list[AnyTransformer] = Field(discriminator="name", default_factory=list)
 
 
-class EntityTransformRequest(ParentModel):
-    config: EntityTransformConfig
-    entities: list[AttributeValueEntity] = Field(min_length=1)
+class BaseTransformRequest(ParentModel):
+    config: TransformConfig
     attribute_transformers: list[AttributeTransformerConfig] = Field(default_factory=list)
     global_transformers: GlobalTransformerConfig = Field(default_factory=GlobalTransformerConfig)
 
     @model_validator(mode="after")
     def validate_at_least_one_transformer(self) -> Self:
         if len(self.attribute_transformers) == 0 and (
-            len(self.global_transformers.before) + len(self.global_transformers.after) == 0
+                len(self.global_transformers.before) + len(self.global_transformers.after) == 0
         ):
             raise ValueError("attribute and global transformers are empty: must contain at least one")
 
         return self
 
+    def with_entities(self, entities: list[AttributeValueEntity]) -> "EntityTransformRequest":
+        return EntityTransformRequest(
+            config=self.config,
+            attribute_transformers=self.attribute_transformers,
+            global_transformers=self.global_transformers,
+            entities=entities,
+        )
+
+
+class EntityTransformRequest(BaseTransformRequest):
+    entities: list[AttributeValueEntity] = Field(min_length=1)
+
 
 class EntityTransformResponse(ParentModel):
-    config: EntityTransformConfig
+    config: TransformConfig
     entities: list[AttributeValueEntity]

@@ -9,19 +9,19 @@ Instead, it is used by other packages to power their functionalities.
 
 Models for entity pre-processing, masking and bit vector matching are exposed through this package.
 The following examples are taken from the test suites of the
-[PPRL service package](https://github.com/ul-mds/pprl/tree/main/packages/pprl_service) and show additional 
-validation steps in addition to the ones native to Pydantic. 
+[PPRL service package](https://github.com/ul-mds/pprl/tree/main/packages/pprl_service) and show additional
+validation steps in addition to the ones native to Pydantic.
 
 ## Entity transformation
 
 ```python
-from pprl_model import EntityTransformRequest, EntityTransformConfig, EmptyValueHandling, AttributeValueEntity, \
+from pprl_model import EntityTransformRequest, TransformConfig, EmptyValueHandling, AttributeValueEntity, \
     AttributeTransformerConfig, NumberTransformer, GlobalTransformerConfig, NormalizationTransformer, \
     CharacterFilterTransformer
 
 # This is a valid config.
 _ = EntityTransformRequest(
-    config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+    config=TransformConfig(empty_value=EmptyValueHandling.ignore),
     entities=[
         AttributeValueEntity(
             id="001",
@@ -53,7 +53,7 @@ from uuid import uuid4
 
 # Validation will fail since no transformers have been defined.
 _ = EntityTransformRequest(
-    config=EntityTransformConfig(empty_value=EmptyValueHandling.ignore),
+    config=TransformConfig(empty_value=EmptyValueHandling.ignore),
     entities=[
         AttributeValueEntity(
             id=str(uuid4()),
@@ -246,9 +246,9 @@ _ = EntityMaskRequest(
 ## Bit vector matching
 
 ```python
-from pprl_model import MatchRequest, MatchConfig, SimilarityMeasure, BitVectorEntity
+from pprl_model import VectorMatchRequest, MatchConfig, SimilarityMeasure, BitVectorEntity
 
-_ = MatchRequest(
+_ = VectorMatchRequest(
     config=MatchConfig(
         measure=SimilarityMeasure.jaccard,
         threshold=0.8

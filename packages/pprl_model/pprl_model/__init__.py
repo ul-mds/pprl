@@ -3,8 +3,8 @@ from .mask import HashStrategy, DoubleHash, TripleHash, EnhancedDoubleHash, Rand
     HashFunction, HashConfig, FilterType, CLKFilter, RBFFilter, CLKRBFFilter, AnyFilter, Hardener, BalanceHardener, \
     XORFoldHardener, PermuteHardener, RandomizedResponseHardener, Rule90Hardener, RehashHardener, AnyHardener, \
     MaskConfig, AttributeSalt, StaticAttributeConfig, WeightedAttributeConfig, EntityMaskRequest, EntityMaskResponse
-from .match import SimilarityMeasure, MatchConfig, MatchRequest, MatchResponse, Match
-from .transform import EmptyValueHandling, EntityTransformConfig, Transformer, NormalizationTransformer, \
+from .match import SimilarityMeasure, MatchConfig, VectorMatchRequest, VectorMatchResponse, Match
+from .transform import EmptyValueHandling, TransformConfig, Transformer, NormalizationTransformer, \
     DateTimeTransformer, CharacterFilterTransformer, MappingTransformer, NumberTransformer, \
     PhoneticCodeTransformer, PhoneticCodeAlgorithm, AnyTransformer, \
     AttributeTransformerConfig, GlobalTransformerConfig, EntityTransformRequest, \
@@ -16,11 +16,11 @@ __all__ = [
     "HealthResponse",
     "SimilarityMeasure",
     "MatchConfig",
-    "MatchRequest",
-    "MatchResponse",
+    "VectorMatchRequest",
+    "VectorMatchResponse",
     "Match",
     "EmptyValueHandling",
-    "EntityTransformConfig",
+    "TransformConfig",
     "Transformer",
     "NormalizationTransformer",
     "DateTimeTransformer",
