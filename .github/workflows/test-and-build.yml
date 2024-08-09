@@ -49,7 +49,7 @@ jobs:
           PPRL_USE_TESTCONTAINER: 0
     services:
       pprl:
-        image: ghcr.io/ul-mds/pprl:0.1.1
+        image: ghcr.io/ul-mds/pprl:0.1.2
         ports:
           - 8000:8000
 

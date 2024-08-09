@@ -5,7 +5,8 @@ import urllib.parse
 from typing import TypeVar, Type
 
 import httpx
-from pprl_model import EntityTransformRequest, EntityTransformResponse, MatchRequest, MatchResponse, EntityMaskRequest, \
+from pprl_model import EntityTransformRequest, EntityTransformResponse, VectorMatchRequest, VectorMatchResponse, \
+    EntityMaskRequest, \
     EntityMaskResponse
 from pydantic import BaseModel
 
@@ -48,13 +49,13 @@ def _perform_request(url: str, model_in: _MI, model_out: Type[_MO],
 
 
 def match(
-        req: MatchRequest,
+        req: VectorMatchRequest,
         base_url="http://localhost:8000",
         url: str | None = None,
         timeout_secs: int | None = _DEFAULT_TIMEOUT_SECS
 ):
     url = _coalesce_url(base_url, "match/", url)
-    return _perform_request(url, req, MatchResponse, timeout_secs)
+    return _perform_request(url, req, VectorMatchResponse, timeout_secs)
 
 
 def transform(
