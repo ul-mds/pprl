@@ -1,8 +1,6 @@
-from pprl_model import BitVectorEntity, AttributeValueEntity
-from pprl_model.mask import BaseMaskRequest, MaskConfig, HashConfig, HashFunction, HashAlgorithm, DoubleHash, CLKFilter
-from pprl_model.match import BaseMatchRequest, MatchConfig, SimilarityMeasure
-from pprl_model.transform import BaseTransformRequest, TransformConfig, EmptyValueHandling, GlobalTransformerConfig, \
-    NormalizationTransformer
+from pprl_model import BitVectorEntity, AttributeValueEntity, BaseMatchRequest, MatchConfig, SimilarityMeasure, \
+    BaseMaskRequest, MaskConfig, HashConfig, HashFunction, HashAlgorithm, DoubleHash, CLKFilter, BaseTransformRequest, \
+    TransformConfig, EmptyValueHandling, GlobalTransformerConfig, NormalizationTransformer
 
 _dummy_entity = AttributeValueEntity(
     id="001",

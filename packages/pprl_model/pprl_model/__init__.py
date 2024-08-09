@@ -2,13 +2,14 @@ from .common import BitVectorEntity, AttributeValueEntity, HealthResponse
 from .mask import HashStrategy, DoubleHash, TripleHash, EnhancedDoubleHash, RandomHash, AnyHashStrategy, HashAlgorithm, \
     HashFunction, HashConfig, FilterType, CLKFilter, RBFFilter, CLKRBFFilter, AnyFilter, Hardener, BalanceHardener, \
     XORFoldHardener, PermuteHardener, RandomizedResponseHardener, Rule90Hardener, RehashHardener, AnyHardener, \
-    MaskConfig, AttributeSalt, StaticAttributeConfig, WeightedAttributeConfig, EntityMaskRequest, EntityMaskResponse
-from .match import SimilarityMeasure, MatchConfig, VectorMatchRequest, VectorMatchResponse, Match
+    MaskConfig, AttributeSalt, StaticAttributeConfig, WeightedAttributeConfig, EntityMaskRequest, EntityMaskResponse, \
+    BaseMaskRequest
+from .match import SimilarityMeasure, MatchConfig, VectorMatchRequest, VectorMatchResponse, Match, BaseMatchRequest
 from .transform import EmptyValueHandling, TransformConfig, Transformer, NormalizationTransformer, \
     DateTimeTransformer, CharacterFilterTransformer, MappingTransformer, NumberTransformer, \
     PhoneticCodeTransformer, PhoneticCodeAlgorithm, AnyTransformer, \
     AttributeTransformerConfig, GlobalTransformerConfig, EntityTransformRequest, \
-    EntityTransformResponse
+    EntityTransformResponse, BaseTransformRequest
 
 __all__ = [
     "BitVectorEntity",
@@ -64,5 +65,8 @@ __all__ = [
     "StaticAttributeConfig",
     "WeightedAttributeConfig",
     "EntityMaskRequest",
-    "EntityMaskResponse"
+    "EntityMaskResponse",
+    "BaseMaskRequest",
+    "BaseTransformRequest",
+    "BaseMatchRequest"
 ]
