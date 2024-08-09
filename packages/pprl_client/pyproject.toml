@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pprl-client"
-version = "0.1.0"
+version = "0.1.1"
 description = "HTTP-based client for interacting with a service for privacy-preserving record linkage with Bloom filters."
 authors = ["Maximilian Jugl <Maximilian.Jugl@medizin.uni-leipzig.de>"]
 readme = "README.md"
@@ -28,7 +28,8 @@ pprl = "pprl_client.cli:run_cli"
 python = "^3.10"
 httpx = "^0.27.0"
 click = "^8.0.0"
-pprl-model = "^0.1.0"
+pprl-model = "^0.1.1"
+pprl-core = "^0.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"

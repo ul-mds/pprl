@@ -1,5 +1,5 @@
-from pprl_model import MatchRequest, MatchConfig, SimilarityMeasure, BitVectorEntity, EntityTransformRequest, \
-    EntityTransformConfig, EmptyValueHandling, GlobalTransformerConfig, \
+from pprl_model import VectorMatchRequest, MatchConfig, SimilarityMeasure, BitVectorEntity, EntityTransformRequest, \
+    TransformConfig, EmptyValueHandling, GlobalTransformerConfig, \
     NormalizationTransformer, EntityMaskRequest, MaskConfig, HashConfig, HashFunction, RandomHash, HashAlgorithm, \
     CLKFilter
 
@@ -18,7 +18,7 @@ def test_match(pprl_base_url, base64_factory, uuid4_factory):
         value=base64_factory(),
     ) for _ in range(10)]
 
-    r = pprl_client.match(MatchRequest(
+    r = pprl_client.match(VectorMatchRequest(
         config=MatchConfig(
             measure=SimilarityMeasure.jaccard,
             threshold=0,
@@ -34,7 +34,7 @@ def test_transform(pprl_base_url, uuid4_factory, faker):
     entities = [generate_person(uuid4_factory(), faker) for _ in range(100)]
 
     r = pprl_client.transform(EntityTransformRequest(
-        config=EntityTransformConfig(empty_value=EmptyValueHandling.error),
+        config=TransformConfig(empty_value=EmptyValueHandling.error),
         entities=entities,
         global_transformers=GlobalTransformerConfig(before=[NormalizationTransformer()])
     ), base_url=pprl_base_url)

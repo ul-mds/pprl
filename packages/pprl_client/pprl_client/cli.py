@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, TypeVar, Type
 
 import click
-from pprl_model import MatchConfig, BitVectorEntity, MatchRequest, EntityTransformConfig, AttributeValueEntity, \
+from pprl_model import MatchConfig, BitVectorEntity, VectorMatchRequest, TransformConfig, AttributeValueEntity, \
     GlobalTransformerConfig, EntityTransformRequest, MaskConfig, CLKFilter, HashConfig, \
     HashFunction, EntityMaskRequest, RBFFilter, CLKRBFFilter
 from pydantic import BaseModel
@@ -225,7 +225,7 @@ def match(
                     for idx_tpl in progressbar:
                         domain_idx, range_idx = idx_tpl[0], idx_tpl[1]
 
-                        match_request = MatchRequest(
+                        match_request = VectorMatchRequest(
                             config=match_config,
                             domain=domain_vectors[domain_idx:domain_idx + batch_size],
                             range=range_vectors[range_idx:range_idx + batch_size],
@@ -305,7 +305,7 @@ def transform(
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # noinspection PyTypeChecker
-    config = EntityTransformConfig(empty_value=empty_value)
+    config = TransformConfig(empty_value=empty_value)
 
     # read entities
     csv_columns, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
