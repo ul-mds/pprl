@@ -108,6 +108,44 @@ print(response.matches)
 # => [Match(domain=BitVectorEntity(id='001', value='SKkgqBHBCJJCANICEKSpWMAUBYCQEMLuZgEQGBKRC8A='), range=BitVectorEntity(id='100', value='UKkgqBHBDJJCANICELSpWMAUBYCMEMLrZgEQGBKRC7A='), similarity=0.8536585365853658)]
 ```
 
+## Attribute weight estimation
+
+```python
+import pprl_client
+from pprl_model import AttributeValueEntity, BaseTransformRequest, TransformConfig, EmptyValueHandling, \
+    GlobalTransformerConfig, NormalizationTransformer
+
+stats = pprl_client.compute_attribute_stats(
+    [
+        AttributeValueEntity(
+            id="001",
+            attributes={
+                "given_name": "Max",
+                "last_name": "Mustermann",
+                "gender": "m"
+            }
+        ),
+        AttributeValueEntity(
+            id="002",
+            attributes={
+                "given_name": "Maria",
+                "last_name": "Musterfrau",
+                "gender": "f"
+            }
+        )
+    ],
+    BaseTransformRequest(
+        config=TransformConfig(empty_value=EmptyValueHandling.skip),
+        global_transformers=GlobalTransformerConfig(
+            before=[NormalizationTransformer()]
+        )
+    ),
+)
+
+print(stats)
+# => {'given_name': AttributeStats(average_tokens=5.0, ngram_entropy=2.9219280948873623), 'last_name': AttributeStats(average_tokens=11.0, ngram_entropy=3.913977073182751), 'gender': AttributeStats(average_tokens=2.0, ngram_entropy=2.0)}
+```
+
 # Command line interface
 
 The `pprl` command exposes all the library's functions and adapts them to work with CSV files. 
@@ -128,9 +166,10 @@ Options:
   --help                          Show this message and exit.
 
 Commands:
+  estimate   Estimate attribute weights based on randomly generated data.
   mask       Mask a CSV file with entities.
   match      Match bit vectors from CSV files against each other.
-  transform  Perform pre-processing on a CSV file with entities.
+  transform  Perform pre-processing on a CSV file with entities
 ```
 
 `pprl mask` has separate subcommands for each supported filter type.
@@ -330,6 +369,51 @@ _output.csv_
 ```csv
 domain_id,domain_file,range_id,range_file,similarity
 001,domain.csv,104,range.csv,0.9690721649484536
+```
+
+Weight estimation is done with the `pprl estimate` command.
+It generates random data based off of user specification and computes estimates for attribute weights.
+Data can be generated using [Faker](https://faker.readthedocs.io/) and [Gecko](https://ul-mds.github.io/gecko/).
+These are exposed through the `faker` and `gecko` subcommands respectively.
+Both subcommands require a file that tell Faker and Gecko how to generate data, as well as a path to a file to write 
+results to.
+[Refer to the example files in the test asset directory](tests/assets).
+
+```
+$ pprl estimate faker tests/assets/faker-config.json faker-output.json
+$ cat faker-output.json
+[
+  {
+    "attribute_name": "given_name",
+    "weight": 7.657958943890718,
+    "average_token_count": 7.5686
+  },
+  {
+    "attribute_name": "last_name",
+    "weight": 7.444573503220938,
+    "average_token_count": 7.5204
+  },
+  {
+    "attribute_name": "gender",
+    "weight": 1.9999971146079947,
+    "average_token_count": 2.0
+  },
+  {
+    "attribute_name": "street_name",
+    "weight": 7.605565770282046,
+    "average_token_count": 16.2188
+  },
+  {
+    "attribute_name": "municipality",
+    "weight": 7.659422921807241,
+    "average_token_count": 9.952
+  },
+  {
+    "attribute_name": "postcode",
+    "weight": 6.7812429085107,
+    "average_token_count": 5.9464
+  }
+]
 ```
 
 # License
