@@ -1,0 +1,39 @@
+{
+  "seed": 727,
+  "count": 5000,
+  "locale": [
+    "de_DE"
+  ],
+  "generators": [
+    {
+      "function_name": "first_name_nonbinary",
+      "attribute_name": "given_name"
+    },
+    {
+      "function_name": "last_name",
+      "attribute_name": "last_name"
+    },
+    {
+      "function_name": "random_element",
+      "attribute_name": "gender",
+      "args": {
+        "elements": [
+          "m",
+          "f"
+        ]
+      }
+    },
+    {
+      "function_name": "street_name",
+      "attribute_name": "street_name"
+    },
+    {
+      "function_name": "city",
+      "attribute_name": "municipality"
+    },
+    {
+      "function_name": "postcode",
+      "attribute_name": "postcode"
+    }
+  ]
+}

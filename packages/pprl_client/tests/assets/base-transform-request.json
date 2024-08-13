@@ -1,0 +1,12 @@
+{
+  "config": {
+    "empty_value": "skip"
+  },
+  "global_transformers": {
+    "before": [
+      {
+        "name": "normalization"
+      }
+    ]
+  }
+}
