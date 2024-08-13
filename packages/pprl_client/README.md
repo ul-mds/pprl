@@ -2,6 +2,15 @@ This package contains a small HTTP-based library for working with the server pro
 the [PPRL service package](https://github.com/ul-mds/pprl/tree/main/packages/pprl_service).
 It also contains a command-line application which uses the library to process CSV files.
 
+Weight estimation requires additional packages which are not shipped by default.
+To add them, install this package using any of the following commands as desired.
+
+```
+$ pip install pprl_client[faker]
+$ pip install pprl_client[gecko]
+$ pip install pprl_client[all]
+```
+
 # Library methods
 
 The library exposes functions for entity pre-processing, masking and bit vector matching.
