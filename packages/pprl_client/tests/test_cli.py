@@ -410,7 +410,5 @@ def test_estimate_gecko(
         "--base-transform-request-file-path", str(base_transform_request_file_path)
     ])
 
-    print(result.output)
-
     assert result.exit_code == 0
     _check_estimate_output(output_path)
