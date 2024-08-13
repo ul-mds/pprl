@@ -140,6 +140,24 @@ def test_compute_attribute_stats(pprl_base_url, uuid4_factory, faker):
     assert all(v.ngram_entropy > 0 and v.average_tokens > 0 for v in attribute_name_to_attribute_stats_dict.values())
 
 
+def _is_attribute_stat_pair_equal(d0: dict[str, AttributeStats], d1: dict[str, AttributeStats]):
+    assert set(d0.keys()) == set(d1.keys())
+
+    def _float_equals(f0: float, f1: float, epsilon: float = 0.000001) -> bool:
+        return abs(f0 - f1) < epsilon
+
+    for k, v0 in d0.items():
+        v1 = d1[k]
+
+        if not _float_equals(v0.average_tokens, v1.average_tokens):
+            return False
+
+        if not _float_equals(v0.ngram_entropy, v1.ngram_entropy):
+            return False
+
+    return True
+
+
 def test_compute_attribute_stats_with_different_padding(pprl_base_url, uuid4_factory, faker):
     entities = [generate_person(uuid4_factory(), faker) for _ in range(100)]
     computed_attribute_stats: list[dict[str, AttributeStats]] = []
@@ -157,7 +175,7 @@ def test_compute_attribute_stats_with_different_padding(pprl_base_url, uuid4_fac
         ))
 
     d0, d1 = computed_attribute_stats
-    assert d0 == d1
+    assert _is_attribute_stat_pair_equal(d0, d1)
 
 
 def test_compute_attribute_stats_with_different_token_sizes(pprl_base_url, uuid4_factory, faker):
@@ -177,7 +195,7 @@ def test_compute_attribute_stats_with_different_token_sizes(pprl_base_url, uuid4
         ))
 
     d0, d1 = computed_attribute_stats
-    assert d0 != d1
+    assert not _is_attribute_stat_pair_equal(d0, d1)
 
 
 def test_compute_attribute_stats_with_different_transform_config(pprl_base_url, uuid4_factory, faker):
@@ -213,4 +231,4 @@ def test_compute_attribute_stats_with_different_transform_config(pprl_base_url, 
         ))
 
     d0, d1 = computed_attribute_stats
-    assert d0 != d1
+    assert not _is_attribute_stat_pair_equal(d0, d1)
