@@ -40,7 +40,7 @@ jobs:
           cache: "poetry"
       - name: Install dependencies
         working-directory: ./packages/${{ matrix.package }}
-        run: poetry install
+        run: poetry install --all-extras
       - name: Test
         working-directory: ./packages/${{ matrix.package }}
         run: poetry run pytest -rs
@@ -77,7 +77,7 @@ jobs:
           cache: "poetry"
       - name: Install dependencies
         working-directory: ./packages/${{ matrix.package }}
-        run: poetry install
+        run: poetry install --all-extras
       - name: Test
         working-directory: ./packages/${{ matrix.package }}
         run: poetry run pytest -rs

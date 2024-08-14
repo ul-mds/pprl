@@ -1,12 +1,31 @@
 import csv
 import json
+import os
+from pathlib import Path
 
 import py
+import pytest
+from git import Repo
 from pprl_model import GlobalTransformerConfig, NormalizationTransformer, AttributeTransformerConfig, \
-    MappingTransformer
+    MappingTransformer, WeightedAttributeConfig
 
 from pprl_client.cli import app
+from pprl_client.model import GeckoGeneratorConfig, GeckoGeneratorSpec
 from tests.helpers import generate_person
+
+
+@pytest.fixture(scope="module")
+def gecko_data_path(tmpdir_factory):
+    git_root_dir_path = tmpdir_factory.mktemp("git")
+    repo = Repo.clone_from(
+        "https://github.com/ul-mds/gecko-data.git",
+        git_root_dir_path,
+        no_checkout=True,
+    )
+    gecko_data_sha = os.environ.get("GECKO_DATA_SHA_COMMIT", "9b7a073caa4fedbc6917152454039d9e005a799c")
+    repo.git.checkout(gecko_data_sha)
+
+    yield git_root_dir_path
 
 
 def _write_random_vectors_to(tmppath: py.path.local, base64_factory, n=1_000):
@@ -302,3 +321,94 @@ def test_mask_clkrbf(
 
     assert result.exit_code == 0
     _check_mask_output(output_path, entity_count)
+
+
+def _check_estimate_output(output_path: py.path.local):
+    with open(output_path, mode="r", encoding="utf-8") as f:
+        output_data = json.load(f)
+
+    output_configs = [WeightedAttributeConfig(**m) for m in output_data]
+
+    # check that result is not empty
+    assert output_configs != []
+
+    # check that all generated values are unique
+    assert len(output_configs) == len(set([c.attribute_name for c in output_configs]))
+    assert len(output_configs) == len(set([c.weight for c in output_configs]))
+    assert len(output_configs) == len(set([c.average_token_count for c in output_configs]))
+
+
+def test_estimate_faker(
+        tmpdir: py.path.local, cli_runner, pprl_base_url, env_pprl_request_timeout_secs
+):
+    faker_config_file_path = Path(__file__).parent / "assets" / "faker-config.json"
+    base_transform_request_file_path = Path(__file__).parent / "assets" / "base-transform-request.json"
+    output_path = tmpdir.join("output.csv")
+
+    result = cli_runner.invoke(app, [
+        "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
+        "estimate", "faker", str(faker_config_file_path), str(output_path),
+        "--base-transform-request-file-path", str(base_transform_request_file_path)
+    ])
+
+    assert result.exit_code == 0
+    _check_estimate_output(output_path)
+
+
+def test_estimate_gecko(
+        tmpdir: py.path.local, cli_runner, pprl_base_url, env_pprl_request_timeout_secs, gecko_data_path
+):
+    gecko_config = GeckoGeneratorConfig(
+        seed=727,
+        count=5_000,
+        generators=[
+            GeckoGeneratorSpec(
+                attribute_names=["given_name", "gender"],
+                function_name="from_multicolumn_frequency_table",
+                args={
+                    "csv_file_path": str(gecko_data_path / "de_DE" / "given-name-gender.csv"),
+                    "value_columns": ["given_name", "gender"],
+                    "freq_column": "count"
+                }
+            ),
+            GeckoGeneratorSpec(
+                attribute_names=["last_name"],
+                function_name="from_frequency_table",
+                args={
+                    "csv_file_path": str(gecko_data_path / "de_DE" / "last-name.csv"),
+                    "value_column": "last_name",
+                    "freq_column": "count"
+                }
+            ),
+            GeckoGeneratorSpec(
+                attribute_names=["street_name", "municipality", "postcode"],
+                function_name="from_multicolumn_frequency_table",
+                args={
+                    "csv_file_path": str(gecko_data_path / "de_DE" / "street-municipality-postcode.csv"),
+                    "value_columns": [
+                        "street_name",
+                        "municipality",
+                        "postcode"
+                    ],
+                    "freq_column": "count"
+                }
+            )
+        ]
+    )
+
+    gecko_config_file_path = tmpdir.join("gecko-config.json")
+
+    with open(gecko_config_file_path, mode="w", encoding="utf-8") as f:
+        json.dump(gecko_config.model_dump(), f)
+
+    base_transform_request_file_path = Path(__file__).parent / "assets" / "base-transform-request.json"
+    output_path = tmpdir.join("output.csv")
+
+    result = cli_runner.invoke(app, [
+        "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
+        "estimate", "gecko", str(gecko_config_file_path), str(output_path),
+        "--base-transform-request-file-path", str(base_transform_request_file_path)
+    ])
+
+    assert result.exit_code == 0
+    _check_estimate_output(output_path)

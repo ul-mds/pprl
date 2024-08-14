@@ -1,0 +1,50 @@
+{
+  "__comment": "This config assumes that you have the Gecko data repository cloned to the root of this package",
+  "seed": 727,
+  "count": 5000,
+  "generators": [
+    {
+      "attribute_names": [
+        "given_name",
+        "gender"
+      ],
+      "function_name": "from_multicolumn_frequency_table",
+      "args": {
+        "csv_file_path": "gecko-data/de_DE/given-name-gender.csv",
+        "value_columns": [
+          "given_name",
+          "gender"
+        ],
+        "freq_column": "count"
+      }
+    },
+    {
+      "attribute_names": [
+        "last_name"
+      ],
+      "function_name": "from_frequency_table",
+      "args": {
+        "csv_file_path": "gecko-data/de_DE/last-name.csv",
+        "value_column": "last_name",
+        "freq_column": "count"
+      }
+    },
+    {
+      "attribute_names": [
+        "street_name",
+        "municipality",
+        "postcode"
+      ],
+      "function_name": "from_multicolumn_frequency_table",
+      "args": {
+        "csv_file_path": "gecko-data/de_DE/street-municipality-postcode.csv",
+        "value_columns": [
+          "street_name",
+          "municipality",
+          "postcode"
+        ],
+        "freq_column": "count"
+      }
+    }
+  ]
+}
