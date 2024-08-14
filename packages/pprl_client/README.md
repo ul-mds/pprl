@@ -390,7 +390,11 @@ results to.
 
 ```
 $ pprl estimate faker tests/assets/faker-config.json faker-output.json
-$ cat faker-output.json
+```
+
+*faker-output.json*
+
+```json
 [
   {
     "attribute_name": "given_name",
