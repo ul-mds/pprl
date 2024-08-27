@@ -27,11 +27,11 @@ The connection timeout is set to 10 seconds by default, but should be increased 
 
 ```python
 import pprl_client
-from pprl_model import EntityTransformRequest, EntityTransformConfig, EmptyValueHandling, AttributeValueEntity, \
+from pprl_model import EntityTransformRequest, TransformConfig, EmptyValueHandling, AttributeValueEntity, \
     GlobalTransformerConfig, NormalizationTransformer
 
 response = pprl_client.transform(EntityTransformRequest(
-    config=EntityTransformConfig(empty_value=EmptyValueHandling.error),
+    config=TransformConfig(empty_value=EmptyValueHandling.error),
     entities=[
         AttributeValueEntity(
             id="001",
@@ -88,9 +88,9 @@ print(response.entities)
 
 ```python
 import pprl_client
-from pprl_model import MatchRequest, MatchConfig, SimilarityMeasure, BitVectorEntity
+from pprl_model import VectorMatchRequest, MatchConfig, SimilarityMeasure, BitVectorEntity
 
-response = pprl_client.match(MatchRequest(
+response = pprl_client.match(VectorMatchRequest(
     config=MatchConfig(
         measure=SimilarityMeasure.jaccard,
         threshold=0.8
@@ -181,23 +181,6 @@ Commands:
   transform  Perform pre-processing on a CSV file with entities
 ```
 
-`pprl mask` has separate subcommands for each supported filter type.
-
-```
-$ pprl mask --help
-Usage: pprl mask [OPTIONS] COMMAND [ARGS]...
-
-  Mask a CSV file with entities.
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  clk     Mask a CSV file with entities using a CLK filter.
-  clkrbf  Mask a CSV file with entities using a CLKRBF filter.
-  rbf     Mask a CSV file with entities using an RBF filter.
-```
-
 The `pprl` command works on two basic types of CSV files that follow a simple structure.
 Entity files are CSV files that contain a column with a unique identifier and arbitrary additional columns which
 contain values for certain attributes that identify an entity.
@@ -225,44 +208,44 @@ id,value
 ```
 
 Pre-processing is done with the `pprl transform` command.
-It requires an entity file and an output file to write the pre-processed entities to.
+It requires a base transform request file, an entity file and an output file to write the pre-processed entities to.
 Attribute and global transformer configurations can be provided, but at least one must be specified.
 
 In this example, a global normalization transformer which is executed before all other attribute-specific transformers
 is defined.
 Date time reformatting is applied to the "date of birth" column in the input file.
 
-_attribute.json_
-
-```json
-[
-  {
-    "attribute_name": "date_of_birth",
-    "transformers": [
-      {
-        "name": "date_time",
-        "input_format": "%Y-%m-%d",
-        "output_format": "%Y%m%d"
-      }
-    ]
-  }
-]
-```
-
-_global.json_
+_request.json_
 
 ```json
 {
-  "before": [
+  "config": {
+    "empty_value": "skip"
+  },
+  "attribute_transformers": [
     {
-      "name": "normalization"
+      "attribute_name": "date_of_birth",
+      "transformers": [
+        {
+          "name": "date_time",
+          "input_format": "%Y-%m-%d",
+          "output_format": "%Y%m%d"
+        }
+      ]
     }
-  ]
+  ],
+  "global_transformers": {
+    "before": [
+      {
+        "name": "normalization"
+      }
+    ]
+  }
 }
 ```
 
 ```
-$ pprl transform ./input.csv ./output.csv --attribute-config-path ./attribute.json --global-config-path ./global.json 
+$ pprl transform ./request.json ./input.csv ./output.csv  
 Transforming entities  [####################################]  100%
 ```
 
@@ -278,21 +261,45 @@ id,first_name,last_name,date_of_birth,gender
 ```
 
 Masking is done with `pprl mask` and its subcommands.
-Depending on the filter type, `clk`, `rbf` or `clkrbf` must be specified.
-The required arguments depend on the selected filter type.
-All filter types expect an entity file and an output file to write the masked entities to.
-Additionally:
+It requires a base mask request file, an entity file and an output file to write the masked entities to.
 
-- `pprl mask clk` requires a filter size in bits and an amount of hash values to generate per token
-- `pprl mask rbf` requires a minimum amount of hash values to generate per token and a seed for the sampling of bits 
-  for the resulting bit vector
-- `pprl mask clkrbf` requires a minimum amount of hash values to generate per token
+_request.json_
 
-In this example, entities are masked using a CLK filter with a size of 512 bits and five hash values per token.
-Attribute values are split into tokens of size two.
-The random hashing scheme is applied and the key "s3cr3t_k3y" is applied to the default hash function SHA256 to make
-it a keyed hash function.
-After masking, bit vectors are hardened by randomly shuffling their bits and rehashing them.
+```json
+{
+  "config": {
+    "token_size": 2,
+    "hash": {
+      "function": {
+        "algorithms": ["sha256"],
+        "key": "s3cr3t_k3y",
+        "strategy": {
+          "name": "random_hash"
+        }
+      }
+    },
+    "prepend_attribute_name": true,
+    "filter": {
+      "type": "clk",
+      "filter_size": 512,
+      "hash_values": 5,
+      "padding": "_",
+      "hardeners": [
+        {
+          "name": "permute",
+          "seed": 727
+        },
+        {
+          "name": "rehash",
+          "window_size": 16,
+          "window_step": 8,
+          "samples": 2
+        }
+      ]
+    }
+  }
+}
+```
 
 _input.csv_
 
@@ -305,25 +312,8 @@ id,first_name,last_name,date_of_birth,gender
 005,rachel,dyer,19040202,female
 ```
 
-_hardener.json_
-
-```json
-[
-  {
-    "name": "permute",
-    "seed": 727
-  },
-  {
-    "name": "rehash",
-    "window_size": 16,
-    "window_step": 8,
-    "samples": 2
-  }
-]
 ```
-
-```
-$ pprl mask clk ./input.csv ./output.csv 512 5 -q 2 -s s3cr3t_k3y --hash-strategy random_hash --hardener-config-path ./hardener.json
+$ pprl mask ./request.json ./input.csv ./output.csv
 Masking entities  [####################################]  100%
 ```
 
@@ -345,6 +335,17 @@ another.
 
 In this example, the bit vectors of two files are matched against each other.
 The Jaccard index is used as a similarity measure and a match threshold of 70% is applied.
+
+_request.json_
+
+```json
+{
+  "config": {
+    "measure": "jaccard",
+    "threshold": 0.7
+  }
+}
+```
 
 _domain.csv_
 
@@ -369,7 +370,7 @@ id,value
 ```
 
 ```
-$ pprl match domain.csv range.csv output.csv -m jaccard -t 0.7
+$ pprl match request.json domain.csv range.csv output.csv
 Matching bit vectors from domain.csv and range.csv  [####################################]  100%
 ```
 

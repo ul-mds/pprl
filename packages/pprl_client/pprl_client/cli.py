@@ -6,10 +6,9 @@ from pathlib import Path
 from typing import Any, TypeVar, Type, Callable
 
 import click
-from pprl_model import MatchConfig, BitVectorEntity, VectorMatchRequest, TransformConfig, AttributeValueEntity, \
-    GlobalTransformerConfig, EntityTransformRequest, MaskConfig, CLKFilter, HashConfig, \
-    HashFunction, EntityMaskRequest, RBFFilter, CLKRBFFilter, WeightedAttributeConfig, BaseTransformRequest, \
-    NormalizationTransformer, EmptyValueHandling
+from pprl_model import BitVectorEntity, TransformConfig, AttributeValueEntity, \
+    GlobalTransformerConfig, WeightedAttributeConfig, BaseTransformRequest, \
+    NormalizationTransformer, EmptyValueHandling, BaseMaskRequest, BaseMatchRequest
 from pydantic import BaseModel
 
 from pprl_client import lib
@@ -58,10 +57,9 @@ def _destructure_context(ctx: click.Context) -> tuple[str, int, int, str, str]:
 
 
 def _mask_and_write_to_output_file(
-        mask_config: MaskConfig,
+        base_mask_request: BaseMaskRequest,
         entity_file_path: Path,
         output_file_path: Path,
-        attribute_config_file_path: Path | None,
         encoding: str,
         delimiter: str,
         entity_id_column: str,
@@ -72,8 +70,6 @@ def _mask_and_write_to_output_file(
 ):
     # read entities
     _, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
-    # read attribute json
-    attribute_json = _maybe_read_json(attribute_config_file_path, encoding) or []
     # determine indices
     idx = list(range(0, len(entities), batch_size))
 
@@ -83,11 +79,10 @@ def _mask_and_write_to_output_file(
 
         with click.progressbar(idx, label="Masking entities") as progressbar:
             for i in progressbar:
-                mask_response = lib.mask(EntityMaskRequest(
-                    config=mask_config,
-                    entities=entities[i:i + batch_size],
-                    attributes=attribute_json
-                ), base_url=base_url, timeout_secs=timeout_secs)
+                mask_response = lib.mask(
+                    base_mask_request.with_entities(entities[i:i + batch_size]),
+                    base_url=base_url, timeout_secs=timeout_secs
+                )
 
                 writer.writerows([
                     {
@@ -159,6 +154,7 @@ def _read_bit_vector_entity_file(
 
 @app.command()
 @click.pass_context
+@click.argument("base_match_request_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("vector_file_path", type=click.Path(exists=True, path_type=Path, dir_okay=False), nargs=-1)
 @click.argument("output_file_path", type=click.Path(path_type=Path, dir_okay=False))
 @click.option(
@@ -169,23 +165,15 @@ def _read_bit_vector_entity_file(
     "--value-column", type=str, default="value",
     help="column name in input CSV file containing vector value"
 )
-@click.option(
-    "-m", "--measure", type=click.Choice(["dice", "cosine", "jaccard"]), default="jaccard",
-    help="similarity measure to use for comparing bit vector pairs"
-)
-@click.option(
-    "-t", "--threshold", type=click.FloatRange(min=0, max=1), default=0.7,
-    help="threshold at which to consider a bit vector pair a match"
-)
 def match(
         ctx: click.Context,
-        vector_file_path: tuple[Path, ...], output_file_path: Path,
-        measure: str, threshold: float,
+        base_match_request_file_path: Path, vector_file_path: tuple[Path, ...], output_file_path: Path,
         id_column: str, value_column: str,
 ):
     """
     Match bit vectors from CSV files against each other.
 
+    BASE_MATCH_REQUEST_FILE_PATH is the path to a JSON file containing the base match request.
     VECTOR_FILE_PATH is the path to a CSV file containing bit vectors.
     At least two files must be specified.
     OUTPUT_FILE_PATH is the path of the CSV file where the matches should be written to.
@@ -195,12 +183,7 @@ def match(
         ctx.exit(1)
 
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
-
-    # noinspection PyTypeChecker
-    match_config = MatchConfig(
-        measure=measure,
-        threshold=threshold,
-    )
+    base_match_request = _parse_json_file_into(base_match_request_file_path, BaseMatchRequest, encoding)
 
     vectors_lst = [_read_bit_vector_entity_file(
         path, encoding, delimiter, id_column, value_column
@@ -228,10 +211,9 @@ def match(
                     for idx_tpl in progressbar:
                         domain_idx, range_idx = idx_tpl[0], idx_tpl[1]
 
-                        match_request = VectorMatchRequest(
-                            config=match_config,
-                            domain=domain_vectors[domain_idx:domain_idx + batch_size],
-                            range=range_vectors[range_idx:range_idx + batch_size],
+                        match_request = base_match_request.with_vectors(
+                            domain_lst=domain_vectors[domain_idx:domain_idx + batch_size],
+                            range_lst=range_vectors[range_idx:range_idx + batch_size]
                         )
 
                         match_response = lib.match(match_request, base_url=base_url, timeout_secs=timeout_secs)
@@ -272,52 +254,32 @@ def _read_attribute_value_entity_file(
 
 @app.command()
 @click.pass_context
+@click.argument("base_transform_request_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_file_path", type=click.Path(path_type=Path, dir_okay=False))
 @click.option(
     "--entity-id-column", type=str, default="id",
     help="column name in entity CSV file containing ID"
 )
-@click.option(
-    "--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None,
-    help="path to JSON file containing attribute-level transformers"
-)
-@click.option(
-    "--global-config-path", type=click.Path(exists=True, path_type=Path), default=None,
-    help="path to JSON file containing global transformers"
-)
-@click.option(
-    "--empty-value", type=click.Choice(["ignore", "error", "skip"]), default="error",
-    help="handling of empty values during processing"
-)
 def transform(
         ctx: click.Context,
+        base_transform_request_file_path: Path,
         entity_file_path: Path,
         output_file_path: Path,
         entity_id_column: str,
-        empty_value: str,
-        attribute_config_path: Path | None,
-        global_config_path: Path | None
 ):
     """
     Perform pre-processing on a CSV file with entities.
 
+    BASE_TRANSFORM_REQUEST_FILE_PATH is the path to a JSON file containing the base transform request.
     ENTITY_FILE_PATH is the path to the CSV file containing entities.
     OUTPUT_FILE_PATH is the path of the CSV file where the pre-processed entities should be written to.
     """
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
-    # noinspection PyTypeChecker
-    config = TransformConfig(empty_value=empty_value)
-
     # read entities
     csv_columns, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
-
-    # read global config
-    global_config = (_maybe_parse_json_file_into(global_config_path, GlobalTransformerConfig, encoding)
-                     or GlobalTransformerConfig())
-
-    attribute_config_json = _maybe_read_json(attribute_config_path, encoding) or []
+    base_transform_request = _parse_json_file_into(base_transform_request_file_path, BaseTransformRequest, encoding)
 
     idx = list(range(0, len(entities), batch_size))
 
@@ -327,11 +289,10 @@ def transform(
 
         with click.progressbar(idx, label="Transforming entities") as progressbar:
             for i in progressbar:
-                transform_response = lib.transform(EntityTransformRequest(
-                    config=config, entities=entities[i:i + batch_size],
-                    attribute_transformers=attribute_config_json,
-                    global_transformers=global_config,
-                ), base_url=base_url, timeout_secs=timeout_secs)
+                transform_response = lib.transform(
+                    base_transform_request.with_entities(entities[i:i + batch_size]),
+                    base_url=base_url, timeout_secs=timeout_secs
+                )
 
                 writer.writerows([
                     {
@@ -341,237 +302,42 @@ def transform(
                 ])
 
 
-@app.group()
-def mask():
-    """Mask a CSV file with entities."""
-    pass
-
-
-def common_mask_options(fn):
-    fn = click.option(
-        "-q", "--token-size", type=click.IntRange(min=2), default=2,
-        help="size of tokens to split each attribute value into"
-    )(fn)
-    fn = click.option(
-        "--prepend-attribute-name/--no-prepend-attribute-name", default=True,
-        help="prepend attribute name to each token inserted into the filter"
-    )(fn)
-    fn = click.option(
-        "-p", "--padding", type=str, default="",
-        help="padding to use when splitting attribute values into tokens"
-    )(fn)
-    fn = click.option(
-        "--hash-strategy", type=click.Choice(
-            ["double_hash", "enhanced_double_hash", "triple_hash", "random_hash"]
-        ), default="random_hash",
-        help="strategy of setting bits in filter to use"
-    )(fn)
-    fn = click.option(
-        "-h", "--hash-algorithm", type=click.Choice([
-            "md5", "sha1", "sha256", "sha512"
-        ]), multiple=True, default=["sha256"],
-        help="hash algorithms to generate hash values with from tokens"
-    )(fn)
-    fn = click.option(
-        "-s", "--hash-key", type=str, default=None,
-        help="secret to use to turn select hash algorithms into keyed HMACs"
-    )(fn)
-    fn = click.option(
-        "--hardener-config-path", type=click.Path(exists=True, path_type=Path), default=None,
-        help="path to JSON file containing hardener configuration"
-    )(fn)
-    fn = click.option(
-        "--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None,
-        help="path to JSON file containing attribute configuration"
-    )(fn)
-    fn = click.option(
-        "--entity-id-column", type=str, default="id",
-        help="column name in entity CSV file containing ID"
-    )(fn)
-    fn = click.option(
-        "--entity-value-column", type=str, default="value",
-        help="column name in output CSV file containing vector value"
-    )(fn)
-
-    return fn
-
-
-@mask.command()
+@app.command()
 @click.pass_context
+@click.argument("base_mask_request_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_file_path", type=click.Path(dir_okay=False, file_okay=True, path_type=Path))
-@click.argument("filter_size", type=click.IntRange(min=1))
-@click.argument("hash_values", type=click.IntRange(min=1))
-@common_mask_options
-def clk(
+@click.option(
+    "--entity-id-column",
+    type=str, default="id", help="column name in entity CSV file containing ID"
+)
+@click.option(
+    "--entity-value-column",
+    type=str, default="value", help="column name in output CSV file containing vector value"
+)
+def mask(
         ctx: click.Context,
+        base_mask_request_file_path: Path,
         entity_file_path: Path,
         output_file_path: Path,
-        filter_size: int,
-        hash_values: int,
-        token_size: int,
-        prepend_attribute_name: bool,
-        padding: str,
-        hash_strategy: str,
-        hash_algorithm: list[str],
-        hash_key: str,
-        hardener_config_path: Path | None,
-        attribute_config_path: Path | None,
         entity_id_column: str,
         entity_value_column: str
 ):
     """
-    Mask a CSV file with entities using a CLK filter.
+    Mask a CSV file with entities.
     
+    BASE_MASK_REQUEST_FILE_PATH is the path to a JSON file containing the base mask request.
     ENTITY_FILE_PATH is the path to the CSV file containing entities.
     OUTPUT_FILE_PATH is the path of the CSV file where the masked entities should be written to.
-    FILTER_SIZE is the size of the CLK filter in bits.
-    HASH_VALUES is the amount of hash values to generate per inserted token into the filter.
     """
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # read hardeners
-    hardener_json = _maybe_read_json(hardener_config_path, encoding) or []
-
-    # noinspection PyTypeChecker
-    mask_config = MaskConfig(
-        token_size=token_size,
-        hash=HashConfig(
-            function=HashFunction(
-                algorithms=hash_algorithm,
-                key=hash_key
-            ),
-            strategy={"name": hash_strategy}
-        ),
-        prepend_attribute_name=prepend_attribute_name,
-        filter=CLKFilter(filter_size=filter_size, hash_values=hash_values),
-        padding=padding,
-        hardeners=hardener_json,
-    )
+    base_mask_request = _parse_json_file_into(base_mask_request_file_path, BaseMaskRequest, encoding)
 
     _mask_and_write_to_output_file(
-        mask_config, entity_file_path, output_file_path,
-        attribute_config_path, encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url,
-        timeout_secs
-    )
-
-
-@mask.command()
-@click.pass_context
-@click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("output_file_path", type=click.Path(dir_okay=False, file_okay=True, path_type=Path))
-@click.argument("hash_values", type=click.IntRange(min=1))
-@click.argument("seed", type=int)
-@common_mask_options
-def rbf(
-        ctx: click.Context,
-        entity_file_path: Path,
-        output_file_path: Path,
-        hash_values: int,
-        seed: int,
-        token_size: int,
-        prepend_attribute_name: bool,
-        padding: str,
-        hash_strategy: str,
-        hash_algorithm: list[str],
-        hash_key: str,
-        hardener_config_path: Path | None,
-        attribute_config_path: Path | None,
-        entity_id_column: str,
-        entity_value_column: str
-):
-    """
-    Mask a CSV file with entities using an RBF filter.
-    
-    ENTITY_FILE_PATH is the path to the CSV file containing entities.
-    OUTPUT_FILE_PATH is the path of the CSV file where the masked entities should be written to.
-    HASH_VALUES is the minimum amount of hash values to generate per token inserted into the filter.
-    The actual amount of hash values is computed using per-attribute configuration.
-    SEED is the random number generator seed for randomly sampling bits to set in the filter. 
-    """
-    base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
-
-    # read hardeners
-    hardener_json = _maybe_read_json(hardener_config_path, encoding) or []
-
-    # noinspection PyTypeChecker
-    mask_config = MaskConfig(
-        token_size=token_size,
-        hash=HashConfig(
-            function=HashFunction(
-                algorithms=hash_algorithm,
-                key=hash_key
-            ),
-            strategy={"name": hash_strategy}
-        ),
-        prepend_attribute_name=prepend_attribute_name,
-        filter=RBFFilter(hash_values=hash_values, seed=seed),
-        padding=padding,
-        hardeners=hardener_json,
-    )
-
-    _mask_and_write_to_output_file(
-        mask_config, entity_file_path, output_file_path,
-        attribute_config_path, encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url,
-        timeout_secs
-    )
-
-
-@mask.command()
-@click.pass_context
-@click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("output_file_path", type=click.Path(dir_okay=False, file_okay=True, path_type=Path))
-@click.argument("hash_values", type=click.IntRange(min=1))
-@common_mask_options
-def clkrbf(
-        ctx: click.Context,
-        entity_file_path: Path,
-        output_file_path: Path,
-        hash_values: int,
-        token_size: int,
-        prepend_attribute_name: bool,
-        padding: str,
-        hash_strategy: str,
-        hash_algorithm: list[str],
-        hash_key: str,
-        hardener_config_path: Path | None,
-        attribute_config_path: Path | None,
-        entity_id_column: str,
-        entity_value_column: str
-):
-    """
-    Mask a CSV file with entities using a CLKRBF filter.
-    
-    ENTITY_FILE_PATH is the path to the CSV file containing entities.
-    OUTPUT_FILE_PATH is the path of the CSV file where the masked entities should be written to.
-    HASH_VALUES is the minimum amount of hash values to generate per token inserted into the filter.
-    The actual amount of hash values is computed using per-attribute configuration.
-    """
-    base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
-
-    # read hardeners
-    hardener_json = _maybe_read_json(hardener_config_path, encoding) or []
-
-    # noinspection PyTypeChecker
-    mask_config = MaskConfig(
-        token_size=token_size,
-        hash=HashConfig(
-            function=HashFunction(
-                algorithms=hash_algorithm,
-                key=hash_key
-            ),
-            strategy={"name": hash_strategy}
-        ),
-        prepend_attribute_name=prepend_attribute_name,
-        filter=CLKRBFFilter(hash_values=hash_values),
-        padding=padding,
-        hardeners=hardener_json,
-    )
-
-    _mask_and_write_to_output_file(
-        mask_config, entity_file_path, output_file_path,
-        attribute_config_path, encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url,
-        timeout_secs
+        base_mask_request, entity_file_path, output_file_path,
+        encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url, timeout_secs
     )
 
 
