@@ -173,6 +173,7 @@ def match(
     """
     Match bit vectors from CSV files against each other.
 
+    BASE_MATCH_REQUEST_FILE_PATH is the path to a JSON file containing the base match request.
     VECTOR_FILE_PATH is the path to a CSV file containing bit vectors.
     At least two files must be specified.
     OUTPUT_FILE_PATH is the path of the CSV file where the matches should be written to.
@@ -270,6 +271,7 @@ def transform(
     """
     Perform pre-processing on a CSV file with entities.
 
+    BASE_TRANSFORM_REQUEST_FILE_PATH is the path to a JSON file containing the base transform request.
     ENTITY_FILE_PATH is the path to the CSV file containing entities.
     OUTPUT_FILE_PATH is the path of the CSV file where the pre-processed entities should be written to.
     """
@@ -322,12 +324,11 @@ def mask(
         entity_value_column: str
 ):
     """
-    Mask a CSV file with entities using a CLK filter.
+    Mask a CSV file with entities.
     
+    BASE_MASK_REQUEST_FILE_PATH is the path to a JSON file containing the base mask request.
     ENTITY_FILE_PATH is the path to the CSV file containing entities.
     OUTPUT_FILE_PATH is the path of the CSV file where the masked entities should be written to.
-    FILTER_SIZE is the size of the CLK filter in bits.
-    HASH_VALUES is the amount of hash values to generate per inserted token into the filter.
     """
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
