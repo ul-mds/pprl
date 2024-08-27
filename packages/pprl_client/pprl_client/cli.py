@@ -7,9 +7,8 @@ from typing import Any, TypeVar, Type, Callable
 
 import click
 from pprl_model import MatchConfig, BitVectorEntity, VectorMatchRequest, TransformConfig, AttributeValueEntity, \
-    GlobalTransformerConfig, EntityTransformRequest, MaskConfig, CLKFilter, HashConfig, \
-    HashFunction, EntityMaskRequest, RBFFilter, CLKRBFFilter, WeightedAttributeConfig, BaseTransformRequest, \
-    NormalizationTransformer, EmptyValueHandling
+    GlobalTransformerConfig, EntityTransformRequest, WeightedAttributeConfig, BaseTransformRequest, \
+    NormalizationTransformer, EmptyValueHandling, BaseMaskRequest
 from pydantic import BaseModel
 
 from pprl_client import lib
@@ -58,10 +57,9 @@ def _destructure_context(ctx: click.Context) -> tuple[str, int, int, str, str]:
 
 
 def _mask_and_write_to_output_file(
-        mask_config: MaskConfig,
+        base_mask_request: BaseMaskRequest,
         entity_file_path: Path,
         output_file_path: Path,
-        attribute_config_file_path: Path | None,
         encoding: str,
         delimiter: str,
         entity_id_column: str,
@@ -72,8 +70,6 @@ def _mask_and_write_to_output_file(
 ):
     # read entities
     _, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
-    # read attribute json
-    attribute_json = _maybe_read_json(attribute_config_file_path, encoding) or []
     # determine indices
     idx = list(range(0, len(entities), batch_size))
 
@@ -83,11 +79,10 @@ def _mask_and_write_to_output_file(
 
         with click.progressbar(idx, label="Masking entities") as progressbar:
             for i in progressbar:
-                mask_response = lib.mask(EntityMaskRequest(
-                    config=mask_config,
-                    entities=entities[i:i + batch_size],
-                    attributes=attribute_json
-                ), base_url=base_url, timeout_secs=timeout_secs)
+                mask_response = lib.mask(
+                    base_mask_request.with_entities(entities[i:i + batch_size]),
+                    base_url=base_url, timeout_secs=timeout_secs
+                )
 
                 writer.writerows([
                     {
@@ -341,82 +336,24 @@ def transform(
                 ])
 
 
-@app.group()
-def mask():
-    """Mask a CSV file with entities."""
-    pass
-
-
-def common_mask_options(fn):
-    fn = click.option(
-        "-q", "--token-size", type=click.IntRange(min=2), default=2,
-        help="size of tokens to split each attribute value into"
-    )(fn)
-    fn = click.option(
-        "--prepend-attribute-name/--no-prepend-attribute-name", default=True,
-        help="prepend attribute name to each token inserted into the filter"
-    )(fn)
-    fn = click.option(
-        "-p", "--padding", type=str, default="",
-        help="padding to use when splitting attribute values into tokens"
-    )(fn)
-    fn = click.option(
-        "--hash-strategy", type=click.Choice(
-            ["double_hash", "enhanced_double_hash", "triple_hash", "random_hash"]
-        ), default="random_hash",
-        help="strategy of setting bits in filter to use"
-    )(fn)
-    fn = click.option(
-        "-h", "--hash-algorithm", type=click.Choice([
-            "md5", "sha1", "sha256", "sha512"
-        ]), multiple=True, default=["sha256"],
-        help="hash algorithms to generate hash values with from tokens"
-    )(fn)
-    fn = click.option(
-        "-s", "--hash-key", type=str, default=None,
-        help="secret to use to turn select hash algorithms into keyed HMACs"
-    )(fn)
-    fn = click.option(
-        "--hardener-config-path", type=click.Path(exists=True, path_type=Path), default=None,
-        help="path to JSON file containing hardener configuration"
-    )(fn)
-    fn = click.option(
-        "--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None,
-        help="path to JSON file containing attribute configuration"
-    )(fn)
-    fn = click.option(
-        "--entity-id-column", type=str, default="id",
-        help="column name in entity CSV file containing ID"
-    )(fn)
-    fn = click.option(
-        "--entity-value-column", type=str, default="value",
-        help="column name in output CSV file containing vector value"
-    )(fn)
-
-    return fn
-
-
-@mask.command()
+@app.command()
 @click.pass_context
+@click.argument("base_mask_request_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_file_path", type=click.Path(dir_okay=False, file_okay=True, path_type=Path))
-@click.argument("filter_size", type=click.IntRange(min=1))
-@click.argument("hash_values", type=click.IntRange(min=1))
-@common_mask_options
-def clk(
+@click.option(
+    "--entity-id-column",
+    type=str, default="id", help="column name in entity CSV file containing ID"
+)
+@click.option(
+    "--entity-value-column",
+    type=str, default="value", help="column name in output CSV file containing vector value"
+)
+def mask(
         ctx: click.Context,
+        base_mask_request_file_path: Path,
         entity_file_path: Path,
         output_file_path: Path,
-        filter_size: int,
-        hash_values: int,
-        token_size: int,
-        prepend_attribute_name: bool,
-        padding: str,
-        hash_strategy: str,
-        hash_algorithm: list[str],
-        hash_key: str,
-        hardener_config_path: Path | None,
-        attribute_config_path: Path | None,
         entity_id_column: str,
         entity_value_column: str
 ):
@@ -431,147 +368,11 @@ def clk(
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
     # read hardeners
-    hardener_json = _maybe_read_json(hardener_config_path, encoding) or []
-
-    # noinspection PyTypeChecker
-    mask_config = MaskConfig(
-        token_size=token_size,
-        hash=HashConfig(
-            function=HashFunction(
-                algorithms=hash_algorithm,
-                key=hash_key
-            ),
-            strategy={"name": hash_strategy}
-        ),
-        prepend_attribute_name=prepend_attribute_name,
-        filter=CLKFilter(filter_size=filter_size, hash_values=hash_values),
-        padding=padding,
-        hardeners=hardener_json,
-    )
+    base_mask_request = _parse_json_file_into(base_mask_request_file_path, BaseMaskRequest, encoding)
 
     _mask_and_write_to_output_file(
-        mask_config, entity_file_path, output_file_path,
-        attribute_config_path, encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url,
-        timeout_secs
-    )
-
-
-@mask.command()
-@click.pass_context
-@click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("output_file_path", type=click.Path(dir_okay=False, file_okay=True, path_type=Path))
-@click.argument("hash_values", type=click.IntRange(min=1))
-@click.argument("seed", type=int)
-@common_mask_options
-def rbf(
-        ctx: click.Context,
-        entity_file_path: Path,
-        output_file_path: Path,
-        hash_values: int,
-        seed: int,
-        token_size: int,
-        prepend_attribute_name: bool,
-        padding: str,
-        hash_strategy: str,
-        hash_algorithm: list[str],
-        hash_key: str,
-        hardener_config_path: Path | None,
-        attribute_config_path: Path | None,
-        entity_id_column: str,
-        entity_value_column: str
-):
-    """
-    Mask a CSV file with entities using an RBF filter.
-    
-    ENTITY_FILE_PATH is the path to the CSV file containing entities.
-    OUTPUT_FILE_PATH is the path of the CSV file where the masked entities should be written to.
-    HASH_VALUES is the minimum amount of hash values to generate per token inserted into the filter.
-    The actual amount of hash values is computed using per-attribute configuration.
-    SEED is the random number generator seed for randomly sampling bits to set in the filter. 
-    """
-    base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
-
-    # read hardeners
-    hardener_json = _maybe_read_json(hardener_config_path, encoding) or []
-
-    # noinspection PyTypeChecker
-    mask_config = MaskConfig(
-        token_size=token_size,
-        hash=HashConfig(
-            function=HashFunction(
-                algorithms=hash_algorithm,
-                key=hash_key
-            ),
-            strategy={"name": hash_strategy}
-        ),
-        prepend_attribute_name=prepend_attribute_name,
-        filter=RBFFilter(hash_values=hash_values, seed=seed),
-        padding=padding,
-        hardeners=hardener_json,
-    )
-
-    _mask_and_write_to_output_file(
-        mask_config, entity_file_path, output_file_path,
-        attribute_config_path, encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url,
-        timeout_secs
-    )
-
-
-@mask.command()
-@click.pass_context
-@click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("output_file_path", type=click.Path(dir_okay=False, file_okay=True, path_type=Path))
-@click.argument("hash_values", type=click.IntRange(min=1))
-@common_mask_options
-def clkrbf(
-        ctx: click.Context,
-        entity_file_path: Path,
-        output_file_path: Path,
-        hash_values: int,
-        token_size: int,
-        prepend_attribute_name: bool,
-        padding: str,
-        hash_strategy: str,
-        hash_algorithm: list[str],
-        hash_key: str,
-        hardener_config_path: Path | None,
-        attribute_config_path: Path | None,
-        entity_id_column: str,
-        entity_value_column: str
-):
-    """
-    Mask a CSV file with entities using a CLKRBF filter.
-    
-    ENTITY_FILE_PATH is the path to the CSV file containing entities.
-    OUTPUT_FILE_PATH is the path of the CSV file where the masked entities should be written to.
-    HASH_VALUES is the minimum amount of hash values to generate per token inserted into the filter.
-    The actual amount of hash values is computed using per-attribute configuration.
-    """
-    base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
-
-    # read hardeners
-    hardener_json = _maybe_read_json(hardener_config_path, encoding) or []
-
-    # noinspection PyTypeChecker
-    mask_config = MaskConfig(
-        token_size=token_size,
-        hash=HashConfig(
-            function=HashFunction(
-                algorithms=hash_algorithm,
-                key=hash_key
-            ),
-            strategy={"name": hash_strategy}
-        ),
-        prepend_attribute_name=prepend_attribute_name,
-        filter=CLKRBFFilter(hash_values=hash_values),
-        padding=padding,
-        hardeners=hardener_json,
-    )
-
-    _mask_and_write_to_output_file(
-        mask_config, entity_file_path, output_file_path,
-        attribute_config_path, encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url,
-        timeout_secs
+        base_mask_request, entity_file_path, output_file_path,
+        encoding, delimiter, entity_id_column, entity_value_column, batch_size, base_url, timeout_secs
     )
 
 

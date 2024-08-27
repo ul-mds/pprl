@@ -7,7 +7,8 @@ import py
 import pytest
 from git import Repo
 from pprl_model import GlobalTransformerConfig, NormalizationTransformer, AttributeTransformerConfig, \
-    MappingTransformer, WeightedAttributeConfig
+    MappingTransformer, WeightedAttributeConfig, PermuteHardener, RehashHardener, StaticAttributeConfig, AttributeSalt, \
+    BaseMaskRequest, MaskConfig, CLKFilter, HashConfig, HashFunction, HashAlgorithm, DoubleHash, RBFFilter, CLKRBFFilter
 
 from pprl_client.cli import app
 from pprl_client.model import GeckoGeneratorConfig, GeckoGeneratorSpec
@@ -194,66 +195,44 @@ def _generate_entities_for_mask(tmpdir: py.path.local, uuid4_factory, faker, n=1
     return entity_path
 
 
-def _generate_hardeners_for_mask(tmpdir: py.path.local):
-    hardener_json_path = tmpdir.join("hardener.json")
-
-    with open(hardener_json_path, mode="w", encoding="utf-8") as f:
-        json.dump([
-            {
-                "name": "permute",
-                "seed": 727
-            },
-            {
-                "name": "rehash",
-                "window_size": 8,
-                "window_step": 8,
-                "samples": 2
-            }
-        ], f)
-
-    return hardener_json_path
+def _generate_hardeners_for_mask():
+    return [
+        PermuteHardener(seed=727),
+        RehashHardener(window_size=8, window_step=8, samples=2)
+    ]
 
 
-def _generate_attributes_for_mask(tmpdir: py.path.local, weighted: bool):
-    attribute_json_path = tmpdir.join("attributes.json")
-
+def _generate_attributes_for_mask(weighted: bool):
     if weighted:
-        attribute_json_content = [
-            {
-                "attribute_name": "first_name",
-                "weight": 4,
-                "average_token_count": 10
-            },
-            {
-                "attribute_name": "last_name",
-                "weight": 4,
-                "average_token_count": 8
-            },
-            {
-                "attribute_name": "gender",
-                "weight": 1,
-                "average_token_count": 6
-            },
-            {
-                "attribute_name": "date_of_birth",
-                "weight": 2,
-                "average_token_count": 10
-            },
+        return [
+            WeightedAttributeConfig(
+                attribute_name="first_name",
+                weight=4,
+                average_token_count=10
+            ),
+            WeightedAttributeConfig(
+                attribute_name="last_name",
+                weight=4,
+                average_token_count=8
+            ),
+            WeightedAttributeConfig(
+                attribute_name="gender",
+                weight=1,
+                average_token_count=6
+            ),
+            WeightedAttributeConfig(
+                attribute_name="date_of_birth",
+                weight=2,
+                average_token_count=10
+            )
         ]
     else:
-        attribute_json_content = [
-            {
-                "attribute_name": "first_name",
-                "salt": {
-                    "value": "foobar"
-                }
-            }
+        return [
+            StaticAttributeConfig(
+                attribute_name="first_name",
+                salt=AttributeSalt(value="foobar")
+            )
         ]
-
-    with open(attribute_json_path, mode="w", encoding="utf-8") as f:
-        json.dump(attribute_json_content, f)
-
-    return attribute_json_path
 
 
 def _check_mask_output(output_path: py.path.local, expected_line_count=1_000):
@@ -267,56 +246,70 @@ def _check_mask_output(output_path: py.path.local, expected_line_count=1_000):
         assert line_count == expected_line_count
 
 
-def test_mask_clk(tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs,
-                  faker):
-    entity_count = 1_000
-    entity_path = _generate_entities_for_mask(tmpdir, uuid4_factory, faker, n=entity_count)
-    hardener_json_path = _generate_hardeners_for_mask(tmpdir)
-    attribute_json_path = _generate_attributes_for_mask(tmpdir, False)
-    output_path = tmpdir.join("output.csv")
-
-    result = cli_runner.invoke(app, [
-        "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
-        "mask", "clk", str(entity_path), str(output_path), "512", "5",
-        "--hardener-config-path", str(hardener_json_path), "--attribute-config-path", str(attribute_json_path),
-    ])
-
-    assert result.exit_code == 0
-    _check_mask_output(output_path, entity_count)
-
-
-def test_mask_rbf(
-        tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs, faker
+@pytest.mark.parametrize(
+    "base_mask_request",
+    [
+        BaseMaskRequest(
+            config=MaskConfig(
+                token_size=2,
+                hash=HashConfig(
+                    function=HashFunction(algorithms=[HashAlgorithm.sha256]),
+                    strategy=DoubleHash()
+                ),
+                prepend_attribute_name=True,
+                filter=CLKFilter(filter_size=512, hash_values=5),
+                padding="_",
+                hardeners=_generate_hardeners_for_mask()
+            ),
+            attributes=_generate_attributes_for_mask(weighted=False)
+        ),
+        BaseMaskRequest(
+            config=MaskConfig(
+                token_size=2,
+                hash=HashConfig(
+                    function=HashFunction(algorithms=[HashAlgorithm.sha256]),
+                    strategy=DoubleHash()
+                ),
+                prepend_attribute_name=True,
+                filter=RBFFilter(hash_values=5, seed=727),
+                padding="_",
+                hardeners=_generate_hardeners_for_mask()
+            ),
+            attributes=_generate_attributes_for_mask(weighted=True)
+        ),
+        BaseMaskRequest(
+            config=MaskConfig(
+                token_size=2,
+                hash=HashConfig(
+                    function=HashFunction(algorithms=[HashAlgorithm.sha256]),
+                    strategy=DoubleHash()
+                ),
+                prepend_attribute_name=True,
+                filter=CLKRBFFilter(hash_values=5),
+                padding="_",
+                hardeners=_generate_hardeners_for_mask()
+            ),
+            attributes=_generate_attributes_for_mask(weighted=True)
+        )
+    ],
+    ids=["clk", "rbf", "clkrbf"]
+)
+def test_mask(
+        base_mask_request, tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_url,
+        env_pprl_request_timeout_secs, faker
 ):
     entity_count = 1_000
     entity_path = _generate_entities_for_mask(tmpdir, uuid4_factory, faker, n=entity_count)
-    hardener_json_path = _generate_hardeners_for_mask(tmpdir)
-    attribute_json_path = _generate_attributes_for_mask(tmpdir, True)
+
     output_path = tmpdir.join("output.csv")
+    mask_request_path = tmpdir.join("mask-request.json")
+
+    with open(mask_request_path, mode="w", encoding="utf-8") as f:
+        json.dump(base_mask_request.model_dump(exclude_none=True), f)
 
     result = cli_runner.invoke(app, [
         "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
-        "mask", "rbf", str(entity_path), str(output_path), "5", "727",
-        "--hardener-config-path", str(hardener_json_path), "--attribute-config-path", str(attribute_json_path),
-    ])
-
-    assert result.exit_code == 0
-    _check_mask_output(output_path, entity_count)
-
-
-def test_mask_clkrbf(
-        tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs, faker
-):
-    entity_count = 1_000
-    entity_path = _generate_entities_for_mask(tmpdir, uuid4_factory, faker, n=entity_count)
-    hardener_json_path = _generate_hardeners_for_mask(tmpdir)
-    attribute_json_path = _generate_attributes_for_mask(tmpdir, True)
-    output_path = tmpdir.join("output.csv")
-
-    result = cli_runner.invoke(app, [
-        "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
-        "mask", "clkrbf", str(entity_path), str(output_path), "5",
-        "--hardener-config-path", str(hardener_json_path), "--attribute-config-path", str(attribute_json_path),
+        "mask", str(mask_request_path), str(entity_path), str(output_path)
     ])
 
     assert result.exit_code == 0
