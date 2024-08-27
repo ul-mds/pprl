@@ -7,7 +7,7 @@ from typing import Any, TypeVar, Type, Callable
 
 import click
 from pprl_model import MatchConfig, BitVectorEntity, VectorMatchRequest, TransformConfig, AttributeValueEntity, \
-    GlobalTransformerConfig, EntityTransformRequest, WeightedAttributeConfig, BaseTransformRequest, \
+    GlobalTransformerConfig, WeightedAttributeConfig, BaseTransformRequest, \
     NormalizationTransformer, EmptyValueHandling, BaseMaskRequest
 from pydantic import BaseModel
 
@@ -267,32 +267,19 @@ def _read_attribute_value_entity_file(
 
 @app.command()
 @click.pass_context
+@click.argument("base_transform_request_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("entity_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_file_path", type=click.Path(path_type=Path, dir_okay=False))
 @click.option(
     "--entity-id-column", type=str, default="id",
     help="column name in entity CSV file containing ID"
 )
-@click.option(
-    "--attribute-config-path", type=click.Path(exists=True, path_type=Path), default=None,
-    help="path to JSON file containing attribute-level transformers"
-)
-@click.option(
-    "--global-config-path", type=click.Path(exists=True, path_type=Path), default=None,
-    help="path to JSON file containing global transformers"
-)
-@click.option(
-    "--empty-value", type=click.Choice(["ignore", "error", "skip"]), default="error",
-    help="handling of empty values during processing"
-)
 def transform(
         ctx: click.Context,
+        base_transform_request_file_path: Path,
         entity_file_path: Path,
         output_file_path: Path,
         entity_id_column: str,
-        empty_value: str,
-        attribute_config_path: Path | None,
-        global_config_path: Path | None
 ):
     """
     Perform pre-processing on a CSV file with entities.
@@ -302,17 +289,9 @@ def transform(
     """
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
 
-    # noinspection PyTypeChecker
-    config = TransformConfig(empty_value=empty_value)
-
     # read entities
     csv_columns, entities = _read_attribute_value_entity_file(entity_file_path, encoding, delimiter, entity_id_column)
-
-    # read global config
-    global_config = (_maybe_parse_json_file_into(global_config_path, GlobalTransformerConfig, encoding)
-                     or GlobalTransformerConfig())
-
-    attribute_config_json = _maybe_read_json(attribute_config_path, encoding) or []
+    base_transform_request = _parse_json_file_into(base_transform_request_file_path, BaseTransformRequest, encoding)
 
     idx = list(range(0, len(entities), batch_size))
 
@@ -322,11 +301,10 @@ def transform(
 
         with click.progressbar(idx, label="Transforming entities") as progressbar:
             for i in progressbar:
-                transform_response = lib.transform(EntityTransformRequest(
-                    config=config, entities=entities[i:i + batch_size],
-                    attribute_transformers=attribute_config_json,
-                    global_transformers=global_config,
-                ), base_url=base_url, timeout_secs=timeout_secs)
+                transform_response = lib.transform(
+                    base_transform_request.with_entities(entities[i:i + batch_size]),
+                    base_url=base_url, timeout_secs=timeout_secs
+                )
 
                 writer.writerows([
                     {

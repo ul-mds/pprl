@@ -8,7 +8,8 @@ import pytest
 from git import Repo
 from pprl_model import GlobalTransformerConfig, NormalizationTransformer, AttributeTransformerConfig, \
     MappingTransformer, WeightedAttributeConfig, PermuteHardener, RehashHardener, StaticAttributeConfig, AttributeSalt, \
-    BaseMaskRequest, MaskConfig, CLKFilter, HashConfig, HashFunction, HashAlgorithm, DoubleHash, RBFFilter, CLKRBFFilter
+    BaseMaskRequest, MaskConfig, CLKFilter, HashConfig, HashFunction, HashAlgorithm, DoubleHash, RBFFilter, \
+    CLKRBFFilter, BaseTransformRequest, TransformConfig, EmptyValueHandling
 
 from pprl_client.cli import app
 from pprl_client.model import GeckoGeneratorConfig, GeckoGeneratorSpec
@@ -145,19 +146,13 @@ def test_transform(
 
     _write_random_persons_to(entity_path, uuid4_factory, faker)
 
-    # set up global attribute config
-    global_json_path = tmpdir.join("global.json")
-
-    with open(global_json_path, mode="w", encoding="utf-8") as f:
-        json.dump(GlobalTransformerConfig(
+    base_transform_request_path = tmpdir.join("transform-request.json")
+    base_transform_request = BaseTransformRequest(
+        config=TransformConfig(empty_value=EmptyValueHandling.skip),
+        global_transformers=GlobalTransformerConfig(
             before=[NormalizationTransformer()]
-        ).model_dump(), f)
-
-    # set up attribute config
-    attribute_json_path = tmpdir.join("attributes.json")
-
-    with open(attribute_json_path, mode="w", encoding="utf-8") as f:
-        json.dump([
+        ),
+        attribute_transformers=[
             AttributeTransformerConfig(
                 attribute_name="gender",
                 transformers=[MappingTransformer(
@@ -166,15 +161,17 @@ def test_transform(
                         "female": "f"
                     }
                 )]
-            ).model_dump()
-        ], f)
+            )
+        ]
+    )
+
+    with open(base_transform_request_path, "w", encoding="utf-8") as f:
+        json.dump(base_transform_request.model_dump(exclude_none=True), f)
 
     output_path = tmpdir.join("output.csv")
     result = cli_runner.invoke(app, [
         "--base-url", pprl_base_url, "--batch-size", "100", "--timeout-secs", str(env_pprl_request_timeout_secs),
-        "transform", str(entity_path), str(output_path),
-        "--global-config-path", str(global_json_path),
-        "--attribute-config-path", str(attribute_json_path),
+        "transform", str(base_transform_request_path), str(entity_path), str(output_path),
     ])
 
     assert result.exit_code == 0
