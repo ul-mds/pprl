@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Any, TypeVar, Type, Callable
 
 import click
-from pprl_model import MatchConfig, BitVectorEntity, VectorMatchRequest, TransformConfig, AttributeValueEntity, \
+from pprl_model import BitVectorEntity, TransformConfig, AttributeValueEntity, \
     GlobalTransformerConfig, WeightedAttributeConfig, BaseTransformRequest, \
-    NormalizationTransformer, EmptyValueHandling, BaseMaskRequest
+    NormalizationTransformer, EmptyValueHandling, BaseMaskRequest, BaseMatchRequest
 from pydantic import BaseModel
 
 from pprl_client import lib
@@ -154,6 +154,7 @@ def _read_bit_vector_entity_file(
 
 @app.command()
 @click.pass_context
+@click.argument("base_match_request_file_path", type=click.Path(exists=True, path_type=Path))
 @click.argument("vector_file_path", type=click.Path(exists=True, path_type=Path, dir_okay=False), nargs=-1)
 @click.argument("output_file_path", type=click.Path(path_type=Path, dir_okay=False))
 @click.option(
@@ -164,18 +165,9 @@ def _read_bit_vector_entity_file(
     "--value-column", type=str, default="value",
     help="column name in input CSV file containing vector value"
 )
-@click.option(
-    "-m", "--measure", type=click.Choice(["dice", "cosine", "jaccard"]), default="jaccard",
-    help="similarity measure to use for comparing bit vector pairs"
-)
-@click.option(
-    "-t", "--threshold", type=click.FloatRange(min=0, max=1), default=0.7,
-    help="threshold at which to consider a bit vector pair a match"
-)
 def match(
         ctx: click.Context,
-        vector_file_path: tuple[Path, ...], output_file_path: Path,
-        measure: str, threshold: float,
+        base_match_request_file_path: Path, vector_file_path: tuple[Path, ...], output_file_path: Path,
         id_column: str, value_column: str,
 ):
     """
@@ -190,12 +182,7 @@ def match(
         ctx.exit(1)
 
     base_url, batch_size, timeout_secs, delimiter, encoding = _destructure_context(ctx)
-
-    # noinspection PyTypeChecker
-    match_config = MatchConfig(
-        measure=measure,
-        threshold=threshold,
-    )
+    base_match_request = _parse_json_file_into(base_match_request_file_path, BaseMatchRequest, encoding)
 
     vectors_lst = [_read_bit_vector_entity_file(
         path, encoding, delimiter, id_column, value_column
@@ -223,10 +210,9 @@ def match(
                     for idx_tpl in progressbar:
                         domain_idx, range_idx = idx_tpl[0], idx_tpl[1]
 
-                        match_request = VectorMatchRequest(
-                            config=match_config,
-                            domain=domain_vectors[domain_idx:domain_idx + batch_size],
-                            range=range_vectors[range_idx:range_idx + batch_size],
+                        match_request = base_match_request.with_vectors(
+                            domain_lst=domain_vectors[domain_idx:domain_idx + batch_size],
+                            range_lst=range_vectors[range_idx:range_idx + batch_size]
                         )
 
                         match_response = lib.match(match_request, base_url=base_url, timeout_secs=timeout_secs)

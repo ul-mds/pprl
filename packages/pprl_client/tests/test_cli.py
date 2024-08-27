@@ -9,7 +9,8 @@ from git import Repo
 from pprl_model import GlobalTransformerConfig, NormalizationTransformer, AttributeTransformerConfig, \
     MappingTransformer, WeightedAttributeConfig, PermuteHardener, RehashHardener, StaticAttributeConfig, AttributeSalt, \
     BaseMaskRequest, MaskConfig, CLKFilter, HashConfig, HashFunction, HashAlgorithm, DoubleHash, RBFFilter, \
-    CLKRBFFilter, BaseTransformRequest, TransformConfig, EmptyValueHandling
+    CLKRBFFilter, BaseTransformRequest, TransformConfig, EmptyValueHandling, BaseMatchRequest, MatchConfig, \
+    SimilarityMeasure
 
 from pprl_client.cli import app
 from pprl_client.model import GeckoGeneratorConfig, GeckoGeneratorSpec
@@ -70,11 +71,18 @@ def test_match(tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url,
     # Check that different files were actually generated.
     assert domain_path.computehash() != range_path.computehash()
 
+    base_match_request_path = tmpdir.join("match-request.json")
+    base_match_request = BaseMatchRequest(
+        config=MatchConfig(measure=SimilarityMeasure.jaccard, threshold=0)
+    )
+
+    with open(base_match_request_path, mode="w", encoding="utf-8") as f:
+        json.dump(base_match_request.model_dump(exclude_none=True), f)
+
     output_path = tmpdir.join("output.csv")
     result = cli_runner.invoke(app, [
         "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
-        "match", str(domain_path), str(range_path), str(output_path),
-        "-m", "jaccard", "-t", "0",
+        "match", str(base_match_request_path), str(domain_path), str(range_path), str(output_path)
     ])
 
     assert result.exit_code == 0
