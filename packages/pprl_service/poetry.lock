@@ -585,13 +585,13 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pprl-core"
-version = "0.1.2"
+version = "0.1.3"
 description = "Facilities for performing privacy-preserving record linkage with Bloom filters."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "pprl_core-0.1.2-py3-none-any.whl", hash = "sha256:1b8855e9199da691c1444df0c72360ed992a17e523db2145bc4c0d6bfd053868"},
-    {file = "pprl_core-0.1.2.tar.gz", hash = "sha256:f4276fb6985c93dc8b79582af996ee5bb630813ba3b0d918d78a3e390392cf57"},
+    {file = "pprl_core-0.1.3-py3-none-any.whl", hash = "sha256:7b416630bbd758b694aa690cc175f582232d3a435a0ac4680c9eb5ed6bbbfe31"},
+    {file = "pprl_core-0.1.3.tar.gz", hash = "sha256:a82b05597430fef6711e934abbb072d89096160eea076658bc8379871d517689"},
 ]
 
 [package.dependencies]
@@ -601,13 +601,13 @@ unidecode = ">=1.3.8,<2"
 
 [[package]]
 name = "pprl-model"
-version = "0.1.3"
+version = "0.1.4"
 description = "Data models for use with a HTTP-based service for privacy-preserving record linkage using Bloom filters."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "pprl_model-0.1.3-py3-none-any.whl", hash = "sha256:fb4d0191f6bd2d0593297b729666cd94c73bc6977daf0007111d7a0d55f74124"},
-    {file = "pprl_model-0.1.3.tar.gz", hash = "sha256:0f6b496e8fc517dd40bb36531ab25a7d4609ca51297a8d46e651a9055585c5f6"},
+    {file = "pprl_model-0.1.4-py3-none-any.whl", hash = "sha256:82de1dd0047debd3f1a3a7b5df01b745b49e784d621d5b3c12fa7b96447bc1c4"},
+    {file = "pprl_model-0.1.4.tar.gz", hash = "sha256:8fcaca185f2d47a330f90c221c9984f5ccaec5567bf107923c122b054cf05760"},
 ]
 
 [package.dependencies]
@@ -1298,4 +1298,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "2453a9163a3dd72d42b6e3e1df62f72a60dad5d84762090118c4cb70066b93c4"
+content-hash = "c61aabe02df4bf445154ba657e7eb86dd5ff9acf723941b3b5e80a91e69689ea"
