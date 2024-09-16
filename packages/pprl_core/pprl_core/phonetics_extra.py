@@ -1,4 +1,4 @@
-__all__ = ["ColognePhonetics"]
+__all__ = ["ColognePhonetics", "GenericSoundex"]
 
 import re
 

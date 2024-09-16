@@ -1,9 +1,9 @@
 import pytest
 from pydantic import ValidationError
 
-from pprl_model import EntityTransformRequest, TransformConfig, EmptyValueHandling, AttributeValueEntity
-from pprl_model.mask import AttributeSalt, RBFFilter, CLKRBFFilter, EntityMaskRequest, MaskConfig, HashConfig, \
-    HashFunction, HashAlgorithm, DoubleHash, StaticAttributeConfig, CLKFilter, WeightedAttributeConfig, FilterType
+from pprl_model import EntityTransformRequest, TransformConfig, EmptyValueHandling, AttributeValueEntity, AttributeSalt, \
+    RBFFilter, CLKRBFFilter, EntityMaskRequest, MaskConfig, HashConfig, HashFunction, HashAlgorithm, DoubleHash, \
+    StaticAttributeConfig, CLKFilter, WeightedAttributeConfig, FilterType
 
 
 def test_entity_transform_request_no_transformers(uuid4):

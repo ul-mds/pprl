@@ -4,7 +4,8 @@ from .mask import HashStrategy, DoubleHash, TripleHash, EnhancedDoubleHash, Rand
     XORFoldHardener, PermuteHardener, RandomizedResponseHardener, Rule90Hardener, RehashHardener, AnyHardener, \
     MaskConfig, AttributeSalt, StaticAttributeConfig, WeightedAttributeConfig, EntityMaskRequest, EntityMaskResponse, \
     BaseMaskRequest
-from .match import SimilarityMeasure, MatchConfig, VectorMatchRequest, VectorMatchResponse, Match, BaseMatchRequest
+from .match import SimilarityMeasure, MatchConfig, VectorMatchRequest, VectorMatchResponse, Match, BaseMatchRequest, \
+    MatchMethod
 from .transform import EmptyValueHandling, TransformConfig, Transformer, NormalizationTransformer, \
     DateTimeTransformer, CharacterFilterTransformer, MappingTransformer, NumberTransformer, \
     PhoneticCodeTransformer, PhoneticCodeAlgorithm, AnyTransformer, \
@@ -68,5 +69,6 @@ __all__ = [
     "EntityMaskResponse",
     "BaseMaskRequest",
     "BaseTransformRequest",
-    "BaseMatchRequest"
+    "BaseMatchRequest",
+    "MatchMethod",
 ]
