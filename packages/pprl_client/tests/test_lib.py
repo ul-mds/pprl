@@ -1,7 +1,7 @@
 from pprl_model import VectorMatchRequest, MatchConfig, SimilarityMeasure, BitVectorEntity, EntityTransformRequest, \
     TransformConfig, EmptyValueHandling, GlobalTransformerConfig, \
     NormalizationTransformer, EntityMaskRequest, MaskConfig, HashConfig, HashFunction, RandomHash, HashAlgorithm, \
-    CLKFilter, BaseTransformRequest, AttributeTransformerConfig, DateTimeTransformer
+    CLKFilter, BaseTransformRequest, AttributeTransformerConfig, DateTimeTransformer, MatchMethod
 
 import pprl_client
 from pprl_client.lib import AttributeStats
@@ -23,6 +23,7 @@ def test_match(pprl_base_url, base64_factory, uuid4_factory):
         config=MatchConfig(
             measure=SimilarityMeasure.jaccard,
             threshold=0,
+            method=MatchMethod.crosswise,
         ),
         domain=domain_vectors,
         range=range_vectors,
