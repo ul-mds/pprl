@@ -5,6 +5,7 @@ from bitarray import bitarray
 from fastapi import APIRouter, HTTPException
 from pprl_core.similarity import SimilarityFn
 from pprl_model import SimilarityMeasure, VectorMatchRequest, VectorMatchResponse, Match
+from pprl_model.match import MatchMethod
 from starlette import status
 
 router = APIRouter()
@@ -39,6 +40,7 @@ def _construct_bitarray_lookup_dict(match_req: VectorMatchRequest) -> dict[str, 
 @router.post("/")
 async def perform_matching(match_req: VectorMatchRequest) -> VectorMatchResponse:
     sim_measure = match_req.config.measure
+    sim_method = match_req.config.method
     sim_fn = _similarity_mapping.get(sim_measure)
 
     if sim_fn is None:
@@ -50,8 +52,29 @@ async def perform_matching(match_req: VectorMatchRequest) -> VectorMatchResponse
     bitarray_lookup = _construct_bitarray_lookup_dict(match_req)
     matches: list[Match] = []
 
-    for domain_entity in match_req.domain:
-        for range_entity in match_req.range:
+    if sim_method == MatchMethod.crosswise:
+        for domain_entity in match_req.domain:
+            for range_entity in match_req.range:
+                domain_ba = bitarray_lookup[domain_entity.value]
+                range_ba = bitarray_lookup[range_entity.value]
+
+                similarity = sim_fn(domain_ba, range_ba)
+
+                if similarity >= match_req.config.threshold:
+                    matches.append(Match(
+                        domain=domain_entity,
+                        range=range_entity,
+                        similarity=similarity,
+                    ))
+    elif sim_method == MatchMethod.pairwise:
+        if len(match_req.domain) != len(match_req.range):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="length of domain and range lists do not match: domain has length of "
+                       f"{len(match_req.domain)}, range has length of {len(match_req.range)}"
+            )
+
+        for domain_entity, range_entity in zip(match_req.domain, match_req.range):
             domain_ba = bitarray_lookup[domain_entity.value]
             range_ba = bitarray_lookup[range_entity.value]
 
@@ -63,6 +86,11 @@ async def perform_matching(match_req: VectorMatchRequest) -> VectorMatchResponse
                     range=range_entity,
                     similarity=similarity,
                 ))
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=f"unimplemented match method `{sim_method.name}`"
+        )
 
     return VectorMatchResponse(
         config=match_req.config,
