@@ -1,6 +1,6 @@
 from pprl_model import BitVectorEntity, AttributeValueEntity, BaseMatchRequest, MatchConfig, SimilarityMeasure, \
     BaseMaskRequest, MaskConfig, HashConfig, HashFunction, HashAlgorithm, DoubleHash, CLKFilter, BaseTransformRequest, \
-    TransformConfig, EmptyValueHandling, GlobalTransformerConfig, NormalizationTransformer
+    TransformConfig, EmptyValueHandling, GlobalTransformerConfig, NormalizationTransformer, MatchMethod
 
 _dummy_entity = AttributeValueEntity(
     id="001",
@@ -21,6 +21,7 @@ def test_match_to_full_model():
         config=MatchConfig(
             measure=SimilarityMeasure.jaccard,
             threshold=0.8,
+            method=MatchMethod.pairwise,
         )
     )
 
