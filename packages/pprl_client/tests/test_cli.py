@@ -10,7 +10,7 @@ from pprl_model import GlobalTransformerConfig, NormalizationTransformer, Attrib
     MappingTransformer, WeightedAttributeConfig, PermuteHardener, RehashHardener, StaticAttributeConfig, AttributeSalt, \
     BaseMaskRequest, MaskConfig, CLKFilter, HashConfig, HashFunction, HashAlgorithm, DoubleHash, RBFFilter, \
     CLKRBFFilter, BaseTransformRequest, TransformConfig, EmptyValueHandling, BaseMatchRequest, MatchConfig, \
-    SimilarityMeasure
+    SimilarityMeasure, MatchMethod
 
 from pprl_client.cli import app
 from pprl_client.model import GeckoGeneratorConfig, GeckoGeneratorSpec
@@ -62,7 +62,7 @@ def _write_random_persons_to(tmppath: py.path.local, uuid4_factory, faker, n=1_0
 def _create_and_get_base_match_request_path(tmpdir: py.path.local):
     base_match_request_path = tmpdir.join("match-request.json")
     base_match_request = BaseMatchRequest(
-        config=MatchConfig(measure=SimilarityMeasure.jaccard, threshold=0)
+        config=MatchConfig(measure=SimilarityMeasure.jaccard, threshold=0, method=MatchMethod.crosswise)
     )
 
     with open(base_match_request_path, mode="w", encoding="utf-8") as f:
