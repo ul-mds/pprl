@@ -5,6 +5,11 @@ from pydantic import confloat, Field
 from pprl_model.common import ParentModel, BitVectorEntity
 
 
+class MatchMethod(str, Enum):
+    crosswise = "crosswise"
+    pairwise = "pairwise"
+
+
 class SimilarityMeasure(str, Enum):
     dice = "dice"
     cosine = "cosine"
@@ -14,6 +19,7 @@ class SimilarityMeasure(str, Enum):
 class MatchConfig(ParentModel):
     measure: SimilarityMeasure
     threshold: confloat(ge=0, le=1)
+    method: MatchMethod = MatchMethod.crosswise
 
 
 class BaseMatchRequest(ParentModel):
