@@ -4,8 +4,7 @@ import pprl_core
 from bitarray import bitarray
 from fastapi import APIRouter, HTTPException
 from pprl_core.similarity import SimilarityFn
-from pprl_model import SimilarityMeasure, VectorMatchRequest, VectorMatchResponse, Match
-from pprl_model.match import MatchMethod
+from pprl_model import SimilarityMeasure, VectorMatchRequest, VectorMatchResponse, Match, MatchMethod
 from starlette import status
 
 router = APIRouter()
