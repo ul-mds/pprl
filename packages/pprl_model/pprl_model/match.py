@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Annotated
 
 from pydantic import confloat, Field
 
@@ -34,8 +35,8 @@ class BaseMatchRequest(ParentModel):
 
 
 class VectorMatchRequest(BaseMatchRequest):
-    domain: list[BitVectorEntity] = Field(min_length=1)
-    range: list[BitVectorEntity] = Field(min_length=1)
+    domain: Annotated[list[BitVectorEntity], Field(min_length=1)]
+    range: Annotated[list[BitVectorEntity], Field(min_length=1)]
 
 
 class Match(ParentModel):

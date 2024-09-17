@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Literal, Union
+from typing import Literal, Union, Annotated
 
 from pydantic import Field, conint, confloat, model_validator
 from typing_extensions import Self
@@ -123,10 +123,10 @@ AnyHardener = Union[
 class MaskConfig(ParentModel):
     token_size: conint(gt=1)
     hash: HashConfig
-    prepend_attribute_name: bool = Field(default=True)
-    filter: AnyFilter = Field(discriminator="type")
-    padding: str = Field(default="")
-    hardeners: list[AnyHardener] = Field(discriminator="name", default_factory=list)
+    prepend_attribute_name: Annotated[bool, Field(default=True)]
+    filter: Annotated[AnyFilter, Field(discriminator="type")]
+    padding: Annotated[str, Field(default="")]
+    hardeners: Annotated[list[Annotated[AnyHardener, Field(..., discriminator="name")]], Field(default_factory=list)]
 
 
 class AttributeSalt(ParentModel):
@@ -158,7 +158,7 @@ class WeightedAttributeConfig(ParentModel):
 
 class BaseMaskRequest(ParentModel):
     config: MaskConfig
-    attributes: list[WeightedAttributeConfig] | list[StaticAttributeConfig] = Field(default_factory=list)
+    attributes: Annotated[list[WeightedAttributeConfig] | list[StaticAttributeConfig], Field(default_factory=list)]
 
     def with_entities(self, entities: list[AttributeValueEntity]) -> "EntityMaskRequest":
         return EntityMaskRequest(
@@ -169,7 +169,7 @@ class BaseMaskRequest(ParentModel):
 
 
 class EntityMaskRequest(BaseMaskRequest):
-    entities: list[AttributeValueEntity] = Field(min_length=1)
+    entities: Annotated[list[AttributeValueEntity], Field(min_length=1)]
 
     @model_validator(mode="after")
     def validate_attribute_type(self) -> Self:

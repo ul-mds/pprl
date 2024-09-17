@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Literal, Union
+from typing import Literal, Union, Annotated
 
 from pydantic import Field, conint, model_validator
 from typing_extensions import Self
@@ -43,7 +43,7 @@ class CharacterFilterTransformer(ParentModel):
 
 class MappingTransformer(ParentModel):
     name: Literal[Transformer.mapping] = Transformer.mapping
-    mapping: dict[str, str] = Field(min_length=1)
+    mapping: Annotated[dict[str, str], Field(min_length=1)]
     default_value: str | None = None
     inline: bool = False
 
@@ -74,18 +74,18 @@ AnyTransformer = Union[
 
 class AttributeTransformerConfig(ParentModel):
     attribute_name: str
-    transformers: list[AnyTransformer] = Field(discriminator="name", min_length=1)
+    transformers: Annotated[list[Annotated[AnyTransformer, Field(..., discriminator="name")]], Field(min_length=1)]
 
 
 class GlobalTransformerConfig(ParentModel):
-    before: list[AnyTransformer] = Field(discriminator="name", default_factory=list)
-    after: list[AnyTransformer] = Field(discriminator="name", default_factory=list)
+    before: Annotated[list[Annotated[AnyTransformer, Field(..., discriminator="name")]], Field(default_factory=list)]
+    after: Annotated[list[Annotated[AnyTransformer, Field(..., discriminator="name")]], Field(default_factory=list)]
 
 
 class BaseTransformRequest(ParentModel):
     config: TransformConfig
-    attribute_transformers: list[AttributeTransformerConfig] = Field(default_factory=list)
-    global_transformers: GlobalTransformerConfig = Field(default_factory=GlobalTransformerConfig)
+    attribute_transformers: Annotated[list[AttributeTransformerConfig], Field(default_factory=list)]
+    global_transformers: Annotated[GlobalTransformerConfig, Field(default_factory=GlobalTransformerConfig)]
 
     @model_validator(mode="after")
     def validate_at_least_one_transformer(self) -> Self:
@@ -106,7 +106,7 @@ class BaseTransformRequest(ParentModel):
 
 
 class EntityTransformRequest(BaseTransformRequest):
-    entities: list[AttributeValueEntity] = Field(min_length=1)
+    entities: Annotated[list[AttributeValueEntity], Field(min_length=1)]
 
 
 class EntityTransformResponse(ParentModel):
