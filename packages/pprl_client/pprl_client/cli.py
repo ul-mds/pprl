@@ -8,7 +8,8 @@ from typing import Any, TypeVar, Type, Callable
 import click
 from pprl_model import BitVectorEntity, TransformConfig, AttributeValueEntity, \
     GlobalTransformerConfig, WeightedAttributeConfig, BaseTransformRequest, \
-    NormalizationTransformer, EmptyValueHandling, BaseMaskRequest, BaseMatchRequest
+    NormalizationTransformer, EmptyValueHandling, BaseMaskRequest, BaseMatchRequest, \
+    MatchMethod
 from pydantic import BaseModel
 
 from pprl_client import lib
@@ -189,6 +190,15 @@ def match(
         path, encoding, delimiter, id_column, value_column
     ) for path in vector_file_path]
 
+    if base_match_request.config.method == MatchMethod.pairwise:
+        vector_lst_lens = set(len(v) for v in vectors_lst)
+
+        if len(vector_lst_lens) != 1:
+            raise ValueError(
+                "All bit vector files must have the same amount of vectors for pairwise matching, got: "
+                f"{', '.join([str(len(v)) for v in vectors_lst])}"
+            )
+
     with open(output_file_path, mode="w", encoding=encoding, newline="") as f:
         writer = csv.DictWriter(f, delimiter=delimiter, fieldnames=[
             "domain_id", "domain_file", "range_id", "range_file", "similarity"
@@ -203,7 +213,13 @@ def match(
 
                 domain_start_idx = list(range(0, len(domain_vectors), batch_size))
                 range_start_idx = list(range(0, len(range_vectors), batch_size))
-                idx_pairs = list(itertools.product(domain_start_idx, range_start_idx))
+
+                if base_match_request.config.method == MatchMethod.crosswise:
+                    idx_pairs = list(itertools.product(domain_start_idx, range_start_idx))
+                elif base_match_request.config.method == MatchMethod.pairwise:
+                    idx_pairs = list(zip(domain_start_idx, range_start_idx))
+                else:
+                    raise ValueError(f"Unsupported match mode: `{match_request.config.method}`")
 
                 with click.progressbar(
                         idx_pairs, label=f"Matching bit vectors from {domain_file_name} and {range_file_name}"
