@@ -184,6 +184,34 @@ def test_match_pairwise(tmpdir: py.path.local, base64_factory, cli_runner, pprl_
         assert line_count == vector_count
 
 
+def test_match_pairwise_error_on_mismatched_lengths(
+        tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url,
+        env_pprl_request_timeout_secs
+):
+    domain_path = tmpdir.join("domain.csv")
+    range_path = tmpdir.join("range.csv")
+
+    _write_random_vectors_to(domain_path, base64_factory, n=99)
+    _write_random_vectors_to(range_path, base64_factory, n=100)
+
+    # check that different file were generated
+    assert domain_path.computehash() != range_path.computehash()
+
+    output_path = tmpdir.join("output.csv")
+    result = cli_runner.invoke(app, [
+        "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
+        "match", str(_create_and_get_base_match_request_path(tmpdir, MatchMethod.pairwise)), str(domain_path),
+        str(range_path),
+        str(output_path)
+    ])
+
+    assert result.exit_code != 0
+    assert isinstance(result.exception, ValueError)
+    assert str(result.exception) == (
+        "All bit vector files must have the same amount of vectors for pairwise matching, got: 99, 100"
+    )
+
+
 def test_transform(
         tmpdir: py.path.local, uuid4_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs, faker
 ):
