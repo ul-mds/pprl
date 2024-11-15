@@ -59,10 +59,10 @@ def _write_random_persons_to(tmppath: py.path.local, uuid4_factory, faker, n=1_0
         )
 
 
-def _create_and_get_base_match_request_path(tmpdir: py.path.local):
+def _create_and_get_base_match_request_path(tmpdir: py.path.local, match_method: MatchMethod):
     base_match_request_path = tmpdir.join("match-request.json")
     base_match_request = BaseMatchRequest(
-        config=MatchConfig(measure=SimilarityMeasure.jaccard, threshold=0, method=MatchMethod.crosswise)
+        config=MatchConfig(measure=SimilarityMeasure.jaccard, threshold=0, method=match_method)
     )
 
     with open(base_match_request_path, mode="w", encoding="utf-8") as f:
@@ -71,7 +71,8 @@ def _create_and_get_base_match_request_path(tmpdir: py.path.local):
     return base_match_request_path
 
 
-def test_match(tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url, env_pprl_request_timeout_secs):
+def test_match_crosswise(tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url,
+                         env_pprl_request_timeout_secs):
     domain_path = tmpdir.join("domain.csv")
     range_path = tmpdir.join("range.csv")
 
@@ -86,7 +87,8 @@ def test_match(tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url,
     output_path = tmpdir.join("output.csv")
     result = cli_runner.invoke(app, [
         "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
-        "match", str(_create_and_get_base_match_request_path(tmpdir)), str(domain_path), str(range_path),
+        "match", str(_create_and_get_base_match_request_path(tmpdir, MatchMethod.crosswise)), str(domain_path),
+        str(range_path),
         str(output_path)
     ])
 
@@ -110,7 +112,8 @@ def test_match_with_single_file(
     _write_random_vectors_to(domain_path, base64_factory)
     result = cli_runner.invoke(app, [
         "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
-        "match", str(_create_and_get_base_match_request_path(tmpdir)), str(domain_path), str(output_path)
+        "match", str(_create_and_get_base_match_request_path(tmpdir, MatchMethod.crosswise)), str(domain_path),
+        str(output_path)
     ])
 
     assert result.exit_code == 1
@@ -134,7 +137,7 @@ def test_match_with_multiple_files(
     output_path = tmpdir.join("output.csv")
     result = cli_runner.invoke(app, [
         "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
-        "match", str(_create_and_get_base_match_request_path(tmpdir)),
+        "match", str(_create_and_get_base_match_request_path(tmpdir, MatchMethod.crosswise)),
         str(v1_path), str(v2_path), str(v3_path), str(output_path),
     ])
 
@@ -147,6 +150,66 @@ def test_match_with_multiple_files(
 
         line_count = sum([1 for _ in reader])
         assert line_count == vector_count * vector_count * len(all_paths)
+
+
+def test_match_pairwise(tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url,
+                        env_pprl_request_timeout_secs):
+    domain_path = tmpdir.join("domain.csv")
+    range_path = tmpdir.join("range.csv")
+
+    vector_count = 100
+
+    _write_random_vectors_to(domain_path, base64_factory, n=vector_count)
+    _write_random_vectors_to(range_path, base64_factory, n=vector_count)
+
+    # check that different file were generated
+    assert domain_path.computehash() != range_path.computehash()
+
+    output_path = tmpdir.join("output.csv")
+    result = cli_runner.invoke(app, [
+        "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
+        "match", str(_create_and_get_base_match_request_path(tmpdir, MatchMethod.pairwise)), str(domain_path),
+        str(range_path),
+        str(output_path)
+    ])
+
+    assert result.exit_code == 0
+    assert output_path.check(file=1, exists=1, dir=0)
+
+    with open(output_path, mode="r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        assert set(reader.fieldnames) == {"domain_id", "domain_file", "range_id", "range_file", "similarity"}
+
+        line_count = sum([1 for _ in reader])
+        assert line_count == vector_count
+
+
+def test_match_pairwise_error_on_mismatched_lengths(
+        tmpdir: py.path.local, base64_factory, cli_runner, pprl_base_url,
+        env_pprl_request_timeout_secs
+):
+    domain_path = tmpdir.join("domain.csv")
+    range_path = tmpdir.join("range.csv")
+
+    _write_random_vectors_to(domain_path, base64_factory, n=99)
+    _write_random_vectors_to(range_path, base64_factory, n=100)
+
+    # check that different file were generated
+    assert domain_path.computehash() != range_path.computehash()
+
+    output_path = tmpdir.join("output.csv")
+    result = cli_runner.invoke(app, [
+        "--base-url", pprl_base_url, "--batch-size", "10", "--timeout-secs", str(env_pprl_request_timeout_secs),
+        "match", str(_create_and_get_base_match_request_path(tmpdir, MatchMethod.pairwise)), str(domain_path),
+        str(range_path),
+        str(output_path)
+    ])
+
+    assert result.exit_code != 0
+    assert isinstance(result.exception, ValueError)
+    assert str(result.exception) == (
+        "All bit vector files must have the same amount of vectors for pairwise matching, got: 99, 100"
+    )
 
 
 def test_transform(
